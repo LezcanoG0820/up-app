@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Department {
+  id               Int          @id @default(autoincrement())
+  nombre           String       @unique
+  slug             String       @unique
+  users            User[]
+  ticketTypes      TicketType[]
+  ticketsAsignados Ticket[]     @relation("TicketsDepartamentoActual")
+}
+
+model User {
+  id             Int         @id @default(autoincrement())
+  nombre         String
+  apellido       String
+  cedula         String      @unique
+  email          String      @unique
+  passwordHash   String
+  rol            Rol
+  departamentoId Int?
+  departamento   Department? @relation(fields: [departamentoId], references: [id])
+
+  ticketsEstudiante Ticket[]        @relation("TicketsEstudiante")
+  messages          TicketMessage[]
+  // auditLogs       AuditLog[]    // ← Lo agregaremos luego
+}
+
+enum Rol {
+  estudiante
+  recepcion
+  departamento
+  admin
+}
+
+model TicketType {
+  id           Int        @id @default(autoincrement())
+  nombre       String     @unique
+  departmentId Int
+  department   Department @relation(fields: [departmentId], references: [id])
+  tickets      Ticket[]
+}
+
+model Ticket {
+  id    Int    @id @default(autoincrement())
+  token String @unique
+
+  estudianteId Int
+  estudiante   User @relation("TicketsEstudiante", fields: [estudianteId], references: [id])
+
+  departamentoActualId Int
+  departamentoActual   Department @relation("TicketsDepartamentoActual", fields: [departamentoActualId], references: [id])
+
+  tipoId Int
+  tipo   TicketType @relation(fields: [tipoId], references: [id])
+
+  asunto      String
+  descripcion String
+  estado      Estado   @default(abierto)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  messages    TicketMessage[]
+  attachments TicketAttachment[]
+}
+
+enum Estado {
+  abierto
+  en_progreso
+  completado
+  cerrado
+}
+
+model TicketMessage {
+  id            Int      @id @default(autoincrement())
+  ticketId      Int
+  ticket        Ticket   @relation(fields: [ticketId], references: [id])
+  autorUserId   Int
+  autor         User     @relation(fields: [autorUserId], references: [id])
+  contenidoHtml String
+  createdAt     DateTime @default(now())
+}
+
+model TicketAttachment {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  messageId Int?
+  filename  String
+  pathLocal String
+  mime      String?
+  size      Int?
+  createdAt DateTime @default(now())
+}
+
+model Result {
+  id           Int              @id @default(autoincrement())
+  cedula       String
+  convocatoria String
+  facultad     String
+  puntaje      Float?
+  estatus      ResultadoEstatus
+  createdAt    DateTime         @default(now())
+}
+
+enum ResultadoEstatus {
+  Aprobado
+  No_aprobado
+  En_revision
+}
