@@ -1,3 +1,4 @@
+// apps/api/routes/auth.js
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
@@ -5,15 +6,84 @@ const prisma = new PrismaClient();
 
 const router = express.Router();
 
-// Login endpoint
+/* ---------- Helpers ---------- */
+function isValidEmail(email = '') {
+  return typeof email === 'string' && /\S+@\S+\.\S+/.test(email);
+}
+function isStrongPassword(pwd = '') {
+  // Mínimo 10 caracteres, 1 mayúscula, 1 minúscula, 1 número
+  return typeof pwd === 'string'
+    && pwd.length >= 10
+    && /[A-Z]/.test(pwd)
+    && /[a-z]/.test(pwd)
+    && /\d/.test(pwd);
+}
+
+/* ---------- Registro (solo estudiantes) ---------- */
+router.post('/register', async (req, res) => {
+  try {
+    const { nombre, apellido, cedula, email, password } = req.body || {};
+
+    // Validaciones básicas
+    if (!nombre || !apellido || !cedula || !email || !password) {
+      return res.status(400).json({ ok: false, error: 'Faltan campos requeridos' });
+    }
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ ok: false, error: 'Email inválido' });
+    }
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Contraseña débil (min 10, mayúscula, minúscula y número)'
+      });
+    }
+
+    // Unicidad (email y cédula)
+    const conflict = await prisma.user.findFirst({
+      where: { OR: [{ email }, { cedula }] },
+      select: { id: true, email: true, cedula: true }
+    });
+    if (conflict) {
+      return res.status(409).json({ ok: false, error: 'Email o cédula ya registrados' });
+    }
+
+    // Hash de contraseña
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    // Crear usuario estudiante
+    const user = await prisma.user.create({
+      data: {
+        nombre: String(nombre).trim(),
+        apellido: String(apellido).trim(),
+        cedula: String(cedula).trim(),
+        email: String(email).toLowerCase().trim(),
+        passwordHash,
+        rol: 'estudiante',
+        twoFactorEnabled: false
+      },
+      select: { id: true, nombre: true, apellido: true, email: true, rol: true }
+    });
+
+    // Auto-login tras registro (deja sesión creada)
+    req.session.userId = user.id;
+
+    return res.json({ ok: true, user });
+  } catch (err) {
+    console.error('Error en registro:', err);
+    return res.status(500).json({ ok: false, error: 'Error en servidor' });
+  }
+});
+
+/* ---------- Login ---------- */
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body || {};
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return res.status(400).json({ ok: false, error: 'Credenciales inválidas' });
 
-    // Verificar bloqueo
+    // ¿Bloqueado por intentos?
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       return res.status(403).json({
         ok: false,
@@ -26,44 +96,51 @@ router.post('/login', async (req, res) => {
     if (!valid) {
       const fails = user.failedLoginCount + 1;
       const updateData = { failedLoginCount: fails };
-
-      if (fails >= 5) {
-        updateData.lockedUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 min
-      }
-
-      await prisma.user.update({
-        where: { id: user.id },
-        data: updateData
-      });
-
+      if (fails >= 5) updateData.lockedUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+      await prisma.user.update({ where: { id: user.id }, data: updateData });
       return res.status(400).json({ ok: false, error: 'Credenciales inválidas' });
     }
 
-    // Resetear contador
+    // Reset fallos y marcar login
     await prisma.user.update({
       where: { id: user.id },
-      data: {
-        failedLoginCount: 0,
-        lockedUntil: null,
-        lastLoginAt: new Date()
-      }
+      data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() }
     });
 
     // Guardar sesión
     req.session.userId = user.id;
-    res.json({ ok: true, message: 'Login exitoso', user: { id: user.id, rol: user.rol, email: user.email } });
 
+    res.json({
+      ok: true,
+      message: 'Login exitoso',
+      user: { id: user.id, rol: user.rol, email: user.email }
+    });
   } catch (err) {
     console.error('Error en login:', err);
     res.status(500).json({ ok: false, error: 'Error en servidor' });
   }
 });
 
-// Logout endpoint
+/* ---------- Sesión actual ---------- */
+router.get('/me', async (req, res) => {
+  try {
+    if (!req.session?.userId) {
+      return res.json({ ok: true, user: null });
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: req.session.userId },
+      select: { id: true, nombre: true, apellido: true, email: true, rol: true }
+    });
+    res.json({ ok: true, user });
+  } catch (err) {
+    console.error('Error en /me:', err);
+    res.status(500).json({ ok: false, error: 'Error en servidor' });
+  }
+});
+
+/* ---------- Logout ---------- */
 router.post('/logout', (req, res) => {
-  req.session.destroy(() => {
-    res.json({ ok: true, message: 'Sesión cerrada' });
-  });
+  req.session.destroy(() => res.json({ ok: true, message: 'Sesión cerrada' }));
 });
 
 module.exports = router;
