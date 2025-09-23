@@ -27,9 +27,15 @@ model User {
   departamentoId Int?
   departamento   Department? @relation(fields: [departamentoId], references: [id])
 
+  // ⬇️ Campos nuevos para autenticación/seguridad
+  twoFactorEnabled Boolean   @default(false)
+  twoFactorSecret  String?
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+  lastLoginAt      DateTime?
+
   ticketsEstudiante Ticket[]        @relation("TicketsEstudiante")
   messages          TicketMessage[]
-  // auditLogs       AuditLog[]    // ← Lo agregaremos luego
 }
 
 enum Rol {
