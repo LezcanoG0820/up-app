@@ -18,6 +18,9 @@ function isStrongPassword(pwd = '') {
     && /[a-z]/.test(pwd)
     && /\d/.test(pwd);
 }
+function normEmail(e = '') {
+  return String(e || '').trim().toLowerCase();
+}
 
 /* ---------- Registro (solo estudiantes) ---------- */
 router.post('/register', async (req, res) => {
@@ -38,9 +41,12 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Unicidad (email y cédula)
+    const emailN = normEmail(email);
+    const cedulaN = String(cedula).trim();
+
+    // Unicidad (email y cédula) — usar valores normalizados
     const conflict = await prisma.user.findFirst({
-      where: { OR: [{ email }, { cedula }] },
+      where: { OR: [{ email: emailN }, { cedula: cedulaN }] },
       select: { id: true, email: true, cedula: true }
     });
     if (conflict) {
@@ -48,16 +54,15 @@ router.post('/register', async (req, res) => {
     }
 
     // Hash de contraseña
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
+    const passwordHash = await bcrypt.hash(String(password), 10);
 
-    // Crear usuario estudiante
+    // Crear usuario estudiante (guardar email en minúsculas)
     const user = await prisma.user.create({
       data: {
         nombre: String(nombre).trim(),
         apellido: String(apellido).trim(),
-        cedula: String(cedula).trim(),
-        email: String(email).toLowerCase().trim(),
+        cedula: cedulaN,
+        email: emailN,
         passwordHash,
         rol: 'estudiante',
         twoFactorEnabled: false
@@ -79,9 +84,18 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body || {};
+    const emailN = normEmail(email);
+    const pwd = String(password || '');
 
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return res.status(400).json({ ok: false, error: 'Credenciales inválidas' });
+    if (!emailN || !pwd) {
+      return res.status(400).json({ ok: false, error: 'Faltan credenciales' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email: emailN } });
+    if (!user || !user.passwordHash) {
+      // si no hay hash (usuarios seed sin contraseña), tratamos como inválido
+      return res.status(400).json({ ok: false, error: 'Credenciales inválidas' });
+    }
 
     // ¿Bloqueado por intentos?
     if (user.lockedUntil && user.lockedUntil > new Date()) {
@@ -92,7 +106,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Verificar contraseña
-    const valid = await bcrypt.compare(password, user.passwordHash);
+    const valid = await bcrypt.compare(pwd, user.passwordHash);
     if (!valid) {
       const fails = user.failedLoginCount + 1;
       const updateData = { failedLoginCount: fails };

@@ -25,13 +25,13 @@
       <!-- Es queja -->
       <label style="display:flex; align-items:center; gap:.5rem; margin-top:.5rem;">
         <input type="checkbox" v-model="esQueja" />
-        Es una queja
+        Es una consulta
       </label>
 
       <!-- Categoría de queja (visible sólo si Es queja) -->
       <div v-if="esQueja">
         <label>
-          Categoría de queja
+          Categoría consulta
           <select v-model="categoriaQueja" required>
             <option value="" disabled>Selecciona la categoría</option>
             <option v-for="q in QUEJAS" :key="q" :value="q">{{ q }}</option>
@@ -57,13 +57,12 @@ import { ticketsApi } from '../api'
 
 // Categorías de quejas (puedes ajustar los nombres)
 const QUEJAS = [
-  'Queja por atención',
-  'Queja por resultados',
-  'Queja por pagos',
-  'Queja por matrícula',
-  'Queja por comunicación de facultad',
-  'Queja sobre procedimientos',
-  'Queja por tiempos de respuesta',
+  'Consulta por atención',
+  'Consulta por resultados',
+  'Consulta por pagos',
+  'Consulta por matrícula',
+  'Consulta sobre procedimientos',
+  'Consulta por tiempos de respuesta',
 ]
 
 const tipos = ref([])
