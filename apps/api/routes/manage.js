@@ -183,4 +183,28 @@ router.post('/tickets/:id/complete', requireAuth, requireRole('recepcion', 'depa
   }
 });
 
+// Lista estática de CRUs/Extensiones (puedes editarla luego)
+const CRUS = [
+  { slug: 'cru-colon', nombre: 'C.R.U. de Colón' },
+  { slug: 'cru-panama-este', nombre: 'C.R.U. Panamá Este' },
+  { slug: 'cru-panama-oeste', nombre: 'C.R.U. Panamá Oeste' },
+  { slug: 'cru-san-miguelito', nombre: 'C.R.U. de San Miguelito' },
+  { slug: 'cru-azuero', nombre: 'C.R.U. de Azuero' },
+  { slug: 'cru-los-santos', nombre: 'C.R.U. de Los Santos' },
+  { slug: 'cru-cocle', nombre: 'C.R.U. de Coclé' },
+  { slug: 'cru-veraguas', nombre: 'C.R.U. de Veraguas' },
+  { slug: 'cru-bocas-del-toro', nombre: 'C.R.U. de Bocas del Toro' },
+  { slug: 'cru-darien', nombre: 'C.R.U. de Darién' },
+  { slug: 'ext-aguadulce', nombre: 'Ext. de Aguadulce' },
+  { slug: 'ext-ocu', nombre: 'Ext. de Ocú' },
+  { slug: 'ext-sona', nombre: 'Ext. de Soná' },
+  { slug: 'ext-torti', nombre: 'Ext. de Tortí' },
+  { slug: 'anexo-guna-yala', nombre: 'Programa anexo Guna Yala' },
+];
+
+router.get('/crus', async (_req, res) => {
+  res.json({ ok: true, crus: CRUS });
+});
+
+
 module.exports = router;

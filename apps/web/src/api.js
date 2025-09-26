@@ -25,6 +25,7 @@ export const ticketsApi = {
   getTypes:  () => request('/api/ticket-types'),
   create:    (payload) => request('/api/tickets', { method: 'POST', body: payload }),
   myTickets: () => request('/api/my/tickets'),
+  getCRUs:   () => request('/api/crus')
 };
 
 /* --- Gestión interna (recepción/depto/admin) --- */

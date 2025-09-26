@@ -7,6 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/**
+ * ===========================
+ * ENTIDADES PRINCIPALES
+ * ===========================
+ */
+
 model Department {
   id               Int          @id @default(autoincrement())
   nombre           String       @unique
@@ -27,7 +33,7 @@ model User {
   departamentoId Int?
   departamento   Department? @relation(fields: [departamentoId], references: [id])
 
-  // ⬇️ Campos nuevos para autenticación/seguridad
+  // Seguridad / autenticación
   twoFactorEnabled Boolean   @default(false)
   twoFactorSecret  String?
   failedLoginCount Int       @default(0)
@@ -68,12 +74,21 @@ model Ticket {
 
   asunto      String
   descripcion String
-  estado      Estado   @default(abierto)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  // NUEVOS CAMPOS PARA DISTRIBUCIÓN
+  cru            String? // CRU/Extensión escogido por el estudiante (texto)
+  categoriaQueja String? // Categoría de queja si aplica (texto)
+
+  estado    Estado   @default(abierto)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   messages    TicketMessage[]
   attachments TicketAttachment[]
+
+  @@index([estudianteId])
+  @@index([departamentoActualId])
+  @@index([tipoId])
 }
 
 enum Estado {
@@ -91,6 +106,9 @@ model TicketMessage {
   autor         User     @relation(fields: [autorUserId], references: [id])
   contenidoHtml String
   createdAt     DateTime @default(now())
+
+  @@index([ticketId])
+  @@index([autorUserId])
 }
 
 model TicketAttachment {
@@ -103,6 +121,8 @@ model TicketAttachment {
   mime      String?
   size      Int?
   createdAt DateTime @default(now())
+
+  @@index([ticketId])
 }
 
 model Result {
