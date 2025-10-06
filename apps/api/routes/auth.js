@@ -25,10 +25,10 @@ function normEmail(e = '') {
 /* ---------- Registro (solo estudiantes) ---------- */
 router.post('/register', async (req, res) => {
   try {
-    const { nombre, apellido, cedula, email, password } = req.body || {};
+    const { nombre, apellido, cedula, email, password, facultad } = req.body || {};
 
     // Validaciones básicas
-    if (!nombre || !apellido || !cedula || !email || !password) {
+    if (!nombre || !apellido || !cedula || !email || !password || !facultad) {
       return res.status(400).json({ ok: false, error: 'Faltan campos requeridos' });
     }
     if (!isValidEmail(email)) {
@@ -44,7 +44,7 @@ router.post('/register', async (req, res) => {
     const emailN = normEmail(email);
     const cedulaN = String(cedula).trim();
 
-    // Unicidad (email y cédula) — usar valores normalizados
+    // Unicidad (email y cédula)
     const conflict = await prisma.user.findFirst({
       where: { OR: [{ email: emailN }, { cedula: cedulaN }] },
       select: { id: true, email: true, cedula: true }
@@ -56,22 +56,22 @@ router.post('/register', async (req, res) => {
     // Hash de contraseña
     const passwordHash = await bcrypt.hash(String(password), 10);
 
-    // Crear usuario estudiante (guardar email en minúsculas)
+    // Crear usuario estudiante
     const user = await prisma.user.create({
       data: {
         nombre: String(nombre).trim(),
         apellido: String(apellido).trim(),
         cedula: cedulaN,
+        facultad: String(facultad).trim(),
         email: emailN,
         passwordHash,
         rol: 'estudiante',
         twoFactorEnabled: false
       },
-      select: { id: true, nombre: true, apellido: true, email: true, rol: true }
+      select: { id: true, nombre: true, apellido: true, email: true, rol: true, cedula: true, facultad: true }
     });
 
-    // Auto-login tras registro (deja sesión creada)
-    req.session.userId = user.id;
+    req.session.userId = user.id; // auto-login
 
     return res.json({ ok: true, user });
   } catch (err) {
@@ -93,7 +93,6 @@ router.post('/login', async (req, res) => {
 
     const user = await prisma.user.findUnique({ where: { email: emailN } });
     if (!user || !user.passwordHash) {
-      // si no hay hash (usuarios seed sin contraseña), tratamos como inválido
       return res.status(400).json({ ok: false, error: 'Credenciales inválidas' });
     }
 
@@ -127,7 +126,7 @@ router.post('/login', async (req, res) => {
     res.json({
       ok: true,
       message: 'Login exitoso',
-      user: { id: user.id, rol: user.rol, email: user.email }
+      user: { id: user.id, rol: user.rol, email: user.email, nombre: user.nombre, apellido: user.apellido, cedula: user.cedula, facultad: user.facultad }
     });
   } catch (err) {
     console.error('Error en login:', err);
@@ -143,7 +142,7 @@ router.get('/me', async (req, res) => {
     }
     const user = await prisma.user.findUnique({
       where: { id: req.session.userId },
-      select: { id: true, nombre: true, apellido: true, email: true, rol: true }
+      select: { id: true, nombre: true, apellido: true, email: true, rol: true, cedula: true, facultad: true }
     });
     res.json({ ok: true, user });
   } catch (err) {

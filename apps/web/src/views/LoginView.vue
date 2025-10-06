@@ -26,7 +26,8 @@ async function doLogin() {
   loading.value = true
   error.value = ''
   try {
-    await authApi.login(email.value, password.value)
+    // 👇 Enviar un OBJETO con email y password
+    await authApi.login({ email: email.value, password: password.value })
     await loadSession()
     router.push('/')
   } catch (e) {

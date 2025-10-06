@@ -31,8 +31,9 @@ const routes = [
   // Departamento
   { path: '/inbox/department', name: 'inbox-department', component: DeptInboxView, meta: { requiresAuth: true, roles: ['departamento','admin'] } },
 
-  // Detalle de ticket (lo ven recepcion, depto y admin)
-  { path: '/tickets/:id', name: 'ticket-detail', component: TicketDetailView, meta: { requiresAuth: true, roles: ['recepcion','departamento','admin'] } },
+  // Detalle de ticket (lo ven recepcion, depto, admin y estudiante dueño vía endpoint propio)
+{ path: '/tickets/:id', name: 'ticket-detail', component: TicketDetailView,
+  meta: { requiresAuth: true, roles: ['estudiante','recepcion','departamento','admin'] } },
 
   // 404 simple
   { path: '/:pathMatch(.*)*', redirect: '/' }

@@ -1,54 +1,63 @@
-// apps/api/index.js
-const express = require('express');
-const session = require('express-session');
-const { PrismaClient } = require('@prisma/client');
+const express = require('express')
+const session = require('express-session')
+const cors = require('cors')
+const { PrismaClient } = require('@prisma/client')
 
-const authRoutes = require('./routes/auth');
-const ticketRoutes = require('./routes/tickets');
-const manageRoutes = require('./routes/manage'); // <- corregido
+const authRoutes = require('./routes/auth')
+const ticketRoutes = require('./routes/tickets')
+const manageRoutes = require('./routes/manage')
 
-const app = express();
-const prisma = new PrismaClient();
+const app = express()
+const prisma = new PrismaClient()
+const PORT = process.env.PORT || 4000
 
-const PORT = process.env.PORT || 4000;
+// --------- CORS (frontend en 5173) ------------
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true
+}))
 
-// Middleware para JSON
-app.use(express.json());
+// --------- JSON primero ------------------------
+app.use(express.json())
 
-// Configuración de sesión (antes de montar rutas protegidas)
+// (opcional en prod detrás de proxy)
+app.set('trust proxy', 1)
+
+// --------- SESIÓN ANTES DE LAS RUTAS -----------
 app.use(session({
-  secret: 'supersecreto-pon-un-valor-fuerte', // cámbialo en producción
+  secret: 'supersecreto-pon-un-valor-fuerte',
   resave: false,
   saveUninitialized: false,
-  cookie: { httpOnly: true, sameSite: 'lax' }
-}));
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax' // en localhost funciona con fetch desde 5173
+    // secure: true  // <— solo en HTTPS
+  }
+}))
 
-// Cargar usuario de sesión en cada request (antes de rutas)
+// cargar usuario desde sesión
 app.use(async (req, _res, next) => {
   if (req.session?.userId) {
     try {
-      req.sessionUser = await prisma.user.findUnique({
-        where: { id: req.session.userId }
-      });
-    } catch (err) {
-      console.error('Error cargando usuario de sesión:', err);
-    }
+      req.sessionUser = await prisma.user.findUnique({ where: { id: req.session.userId } })
+    } catch (e) { console.error('session load error:', e) }
   }
-  next();
-});
+  next()
+})
 
-// Endpoints básicos
-app.get('/ping', (_req, res) => res.send('pong'));
+// --------- RUTAS -------------------------------
+app.get('/ping', (_req, res) => res.send('pong'))
+
 app.get('/db-check', async (_req, res) => {
-  const count = await prisma.department.count();
-  res.json({ ok: true, departments: count });
-});
+  const count = await prisma.department.count()
+  res.json({ ok: true, departments: count })
+})
 
-// Rutas
-app.use('/auth', authRoutes);
-app.use('/api', ticketRoutes);
-app.use('/api', manageRoutes); // <- ahora después de sesión
+app.use('/auth', authRoutes)
+app.use('/api', manageRoutes)
+app.use('/api', ticketRoutes)
 
+// --------- ARRANQUE ----------------------------
 app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
-});
+  console.log(`Servidor corriendo en http://localhost:${PORT}`)
+})

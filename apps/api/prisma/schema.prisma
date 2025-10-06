@@ -33,6 +33,9 @@ model User {
   departamentoId Int?
   departamento   Department? @relation(fields: [departamentoId], references: [id])
 
+  //facultad
+  facultad String?
+
   // Seguridad / autenticación
   twoFactorEnabled Boolean   @default(false)
   twoFactorSecret  String?
@@ -42,6 +45,7 @@ model User {
 
   ticketsEstudiante Ticket[]        @relation("TicketsEstudiante")
   messages          TicketMessage[]
+  auditLogs         AuditLog[]      @relation("UserAuditLogs")
 }
 
 enum Rol {
@@ -85,6 +89,7 @@ model Ticket {
 
   messages    TicketMessage[]
   attachments TicketAttachment[]
+  auditLogs   AuditLog[]         @relation("TicketAuditLogs")
 
   @@index([estudianteId])
   @@index([departamentoActualId])
@@ -139,4 +144,34 @@ enum ResultadoEstatus {
   Aprobado
   No_aprobado
   En_revision
+}
+
+/**
+ * ===========================
+ * AUDITORÍA / HISTORIAL
+ * ===========================
+ */
+
+enum AuditAction {
+  CREATE_TICKET
+  ADD_REPLY
+  REASSIGN
+  COMPLETE
+  UPDATE_TICKET
+}
+
+model AuditLog {
+  id        Int         @id @default(autoincrement())
+  ticketId  Int
+  ticket    Ticket      @relation("TicketAuditLogs", fields: [ticketId], references: [id])
+  actorId   Int
+  actor     User        @relation("UserAuditLogs", fields: [actorId], references: [id])
+  action    AuditAction
+  details   String?
+  createdAt DateTime    @default(now())
+
+  @@index([ticketId])
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
 }

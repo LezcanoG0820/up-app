@@ -1,49 +1,64 @@
-const BASE = ''; // usamos el proxy de Vite
+const BASE = ''
 
-async function request(path, { method = 'GET', body } = {}) {
-  const res = await fetch(path, {
+async function request (path, { method = 'GET', body } = {}) {
+  const opts = {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-    credentials: 'include', // importante para cookies
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-  return data;
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  }
+  if (body) opts.body = JSON.stringify(body)
+
+  const res = await fetch(`${BASE}${path}`, opts)
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`
+    try {
+      const j = await res.json()
+      if (j?.error) msg = j.error
+    } catch {}
+    throw new Error(msg)
+  }
+  const ct = res.headers.get('content-type') || ''
+  return ct.includes('application/json') ? res.json() : res.text()
 }
 
-/* --- Auth --- */
+function qs (obj = {}) {
+  const sp = new URLSearchParams()
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined && v !== null && String(v).length) sp.append(k, v)
+  }
+  const s = sp.toString()
+  return s ? `?${s}` : ''
+}
+
 export const authApi = {
-  me:        () => request('/auth/me'),
-  login:     (email, password) => request('/auth/login', { method: 'POST', body: { email, password } }),
-  register:  (payload) => request('/auth/register', { method: 'POST', body: payload }),
-  logout:    () => request('/auth/logout', { method: 'POST' }),
-};
+  register: (payload) => request('/auth/register', { method: 'POST', body: payload }),
+  login:    (payload) => request('/auth/login',    { method: 'POST', body: payload }),
+  me:       () => request('/auth/me'),
+  logout:   () => request('/auth/logout', { method: 'POST' })
+}
 
-/* --- Tickets (estudiante) --- */
 export const ticketsApi = {
-  getTypes:  () => request('/api/ticket-types'),
-  create:    (payload) => request('/api/tickets', { method: 'POST', body: payload }),
-  myTickets: () => request('/api/my/tickets'),
-  getCRUs:   () => request('/api/crus')
-};
-
-/* --- Gestión interna (recepción/depto/admin) --- */
-function qs(obj = {}) {
-  const p = new URLSearchParams();
-  Object.entries(obj).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== '') p.append(k, v);
-  });
-  const s = p.toString();
-  return s ? `?${s}` : '';
+  getTypes: () => request('/api/ticket-types'),
+  create:   (payload) => request('/api/tickets', { method: 'POST', body: payload }),
+  myList:   () => request('/api/my/tickets'),
+  myTickets: () => request('/api/my/tickets'), // alias
+  // 👇 NUEVO: detalle para estudiante
+  myTicketById: (id) => request(`/api/my/tickets/${id}`),
 }
 
 export const manageApi = {
-  adminTickets: (filters = {}) => request(`/api/admin/tickets${qs(filters)}`),
-  deptTickets:  () => request('/api/dept/tickets'),
-  ticketById:   (id) => request(`/api/tickets/${id}`),
-  reply:        (id, contenidoHtml) => request(`/api/tickets/${id}/messages`, { method: 'POST', body: { contenidoHtml } }),
-  reassign:     (id, { departmentSlug, departmentId } = {}) =>
-                  request(`/api/tickets/${id}/reassign`, { method: 'POST', body: { departmentSlug, departmentId } }),
-  complete:     (id) => request(`/api/tickets/${id}/complete`, { method: 'POST' }),
-};
+  adminTickets:  (filters = {}) => request(`/api/admin/tickets${qs(filters)}`),
+  exportTickets: (filters = {}) => { window.location.href = `/api/admin/tickets/export${qs(filters)}` },
+  // antes era: deptTickets: () => request('/api/dept/tickets'),
+  deptTickets:   (filters = {}) => request(`/api/dept/tickets${qs(filters)}`),
+  ticketById:    (id) => request(`/api/tickets/${id}`),
+  reply:         (id, contenidoHtml) => request(`/api/tickets/${id}/messages`, { method: 'POST', body: { contenidoHtml } }),
+  reassign:      (id, { departmentSlug, departmentId } = {}) => request(`/api/tickets/${id}/reassign`, { method: 'POST', body: { departmentSlug, departmentId } }),
+  complete:      (id) => request(`/api/tickets/${id}/complete`, { method: 'POST' }),
+
+  departments:   () => request('/api/departments'),
+  getCRUs:       () => request('/api/crus'),
+  getFacultades: () => request('/api/facultades')
+}
+
+
