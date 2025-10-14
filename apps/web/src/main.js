@@ -1,3 +1,6 @@
+// aplica estilos del tema
+import './assets/theme.css'
+
 import { createApp } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
@@ -12,6 +15,9 @@ import DeptInboxView from './views/DeptInboxView.vue'
 import TicketDetailView from './views/TicketDetailView.vue'
 
 import { session, loadSession } from './store/session'
+
+// ⬇️ NUEVO: gestor de tema (claro/oscuro)
+import { applySavedTheme } from './utils/theme'
 
 // Definimos rutas con metadata de rol
 const routes = [
@@ -32,8 +38,8 @@ const routes = [
   { path: '/inbox/department', name: 'inbox-department', component: DeptInboxView, meta: { requiresAuth: true, roles: ['departamento','admin'] } },
 
   // Detalle de ticket (lo ven recepcion, depto, admin y estudiante dueño vía endpoint propio)
-{ path: '/tickets/:id', name: 'ticket-detail', component: TicketDetailView,
-  meta: { requiresAuth: true, roles: ['estudiante','recepcion','departamento','admin'] } },
+  { path: '/tickets/:id', name: 'ticket-detail', component: TicketDetailView,
+    meta: { requiresAuth: true, roles: ['estudiante','recepcion','departamento','admin'] } },
 
   // 404 simple
   { path: '/:pathMatch(.*)*', redirect: '/' }
@@ -46,26 +52,21 @@ const router = createRouter({
 
 // Guard global de autenticación y roles
 router.beforeEach(async (to) => {
-  // Si aún no hemos resuelto sesión y no hay user, intentamos cargarla
   if (!session.user && !session.loading) {
     await loadSession().catch(() => {})
   }
 
-  // Rutas solo para invitados
   if (to.meta?.guestOnly && session.user) {
     return { name: 'home' }
   }
 
-  // Rutas que requieren auth
   if (to.meta?.requiresAuth) {
     if (!session.user) {
       return { name: 'login', query: { redirect: to.fullPath } }
     }
-    // Verificación de rol
     const allowed = to.meta.roles
     if (Array.isArray(allowed) && allowed.length > 0) {
       if (!allowed.includes(session.user.rol)) {
-        // sin permisos → a home
         return { name: 'home' }
       }
     }
@@ -73,5 +74,8 @@ router.beforeEach(async (to) => {
 
   return true
 })
+
+
+applySavedTheme()
 
 createApp(App).use(router).mount('#app')

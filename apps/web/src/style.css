@@ -1,79 +1,186 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+/* =========
+   Tema UP·SIU
+   Sin JS, solo mejores estilos globales
+   ========= */
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+/* Paleta */
+:root{
+  --bg: #eef4ff;           /* azul muy suave de fondo */
+  --panel: #ffffff;        /* tarjetas */
+  --panel-ghost:#f7faff;   /* tarjetas fantasma */
+  --text:#0f172a;          /* casi negro */
+  --muted:#64748b;         /* gris texto secundario */
+  --brand:#2563eb;         /* azul principal */
+  --brand-600:#1d4ed8;
+  --brand-700:#1746c3;
+  --border:#e5e7eb;        /* bordes suaves */
+  --ring:#c7d2fe;          /* foco */
+  --success:#16a34a;
+  --danger:#dc2626;
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  --radius: 14px;
+  --shadow: 0 6px 18px rgba(2,6,23,.08);
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+*{box-sizing:border-box}
+html,body,#app{height:100%}
+body{
+  margin:0;
+  font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+  color:var(--text);
+  background:var(--bg);
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+/* ====== Contenedor principal (ya lo tienes en App.vue) */
+header{
+  background: var(--panel);
+  border:1px solid var(--border);
+  border-radius: calc(var(--radius) + 6px);
+  padding: .9rem 1rem;
+  box-shadow: var(--shadow);
 }
 
-.card {
-  padding: 2em;
+/* ====== Navegación (píldoras) */
+header nav a{
+  display:inline-block;
+  padding:.55rem .9rem;
+  border-radius:999px;
+  text-decoration:none;
+  color:#334155;
+  border:1px solid transparent;
+  transition: .15s ease;
+}
+header nav a.router-link-active{
+  background: #eef2ff;
+  border-color:#e0e7ff;
+  color:#1e3a8a;
+  font-weight:600;
+}
+header nav a:hover{
+  background:#f1f5ff;
 }
 
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* ====== Botón de salir */
+header button{
+  all:unset;
+  background:var(--brand);
+  color:#fff;
+  padding:.55rem .9rem;
+  border-radius:999px;
+  cursor:pointer;
+}
+header button:hover{ background:var(--brand-600) }
+
+/* ====== Tarjetas */
+.card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.card-ghost{
+  background:var(--panel-ghost);
+  border:1px dashed #dbeafe;
+  border-radius: var(--radius);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* ====== Títulos */
+h1{font-size:clamp(26px,2.6vw,34px); margin:0 0 .4rem}
+h2{font-size:clamp(18px,2vw,22px); margin:0 0 .6rem}
+h3{font-size:16px; margin:.2rem 0}
+
+/* ====== Formularios */
+input, select, textarea, button{
+  font:inherit;
 }
+input, select, textarea{
+  width:100%;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius: 10px;
+  padding:.6rem .75rem;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+input:focus, select:focus, textarea:focus{
+  border-color:#bfdbfe;
+  box-shadow:0 0 0 4px var(--ring);
+}
+textarea{ resize: vertical }
+
+/* ====== Botones */
+button{
+  background:var(--brand);
+  color:#fff;
+  border:1px solid transparent;
+  border-radius: 10px;
+  padding:.6rem .9rem;
+  cursor:pointer;
+}
+button:hover{ background:var(--brand-600) }
+button:disabled{ opacity:.6; cursor:not-allowed }
+
+.btn-outline{
+  background:#fff;
+  color:var(--brand);
+  border-color:#bfdbfe;
+}
+.btn-outline:hover{
+  background:#eff6ff;
+}
+
+/* ====== Badges / chips */
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+  padding:.35rem .65rem;
+  border-radius:999px;
+  font-size:.85rem;
+  color:#334155;
+  background:#eff6ff;
+  border:1px solid #dbeafe;
+}
+
+/* ====== Tablas (zebra) */
+.table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius: 12px;
+  overflow:hidden;
+  box-shadow: var(--shadow);
+}
+.table th{
+  text-align:left;
+  font-weight:600;
+  font-size:.9rem;
+  color:#334155;
+  background:#f8fafc;
+  border-bottom:1px solid var(--border);
+  padding:.75rem .9rem;
+}
+.table td{
+  padding:.7rem .9rem;
+  border-bottom:1px solid var(--border);
+}
+.table tbody tr:nth-child(even){
+  background:#fbfdff; /* gris/azul muy suave para no cansar la vista */
+}
+.table .muted{ color:var(--muted) }
+
+/* ====== Utilidades pequeñas */
+.flex{ display:flex; gap:.75rem; align-items:center }
+.row{ display:flex; gap:1rem; align-items:flex-start; }
+.col{ display:grid; gap:1rem }
+.center{ display:grid; place-items:center }
+.muted{ color:var(--muted) }
+.mt-1{ margin-top:.5rem } .mt-2{ margin-top:1rem } .mt-3{ margin-top:1.5rem }
+.p-1{ padding:.75rem } .p-2{ padding:1rem } .p-3{ padding:1.25rem } .p-4{ padding:1.75rem }
+.round{ border-radius: var(--radius) }
+
+/* ====== Error y éxito */
+.error{ color:var(--danger) }
+.ok{ color:var(--success) }
