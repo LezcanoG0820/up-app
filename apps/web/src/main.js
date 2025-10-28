@@ -13,6 +13,10 @@ import MyTicketsView from './views/MyTicketsView.vue'
 import ReceptionInboxView from './views/ReceptionInboxView.vue'
 import DeptInboxView from './views/DeptInboxView.vue'
 import TicketDetailView from './views/TicketDetailView.vue'
+import AdminDocumentsView from './views/AdminDocumentsView.vue' 
+import DeptDocumentsView from './views/DeptDocumentsView.vue'
+import DocumentsView from './views/DocumentsView.vue'
+
 
 import { session, loadSession } from './store/session'
 
@@ -41,8 +45,20 @@ const routes = [
   { path: '/tickets/:id', name: 'ticket-detail', component: TicketDetailView,
     meta: { requiresAuth: true, roles: ['estudiante','recepcion','departamento','admin'] } },
 
+  // ⬇️ NUEVO: vistas de gestión de documentos
+  { path: '/docs/admin', name: 'docs-admin', component: AdminDocumentsView, meta: { requiresAuth: true, roles: ['recepcion','admin'] } },
+  { path: '/docs/department', name: 'docs-dept', component: DeptDocumentsView, meta: { requiresAuth: true, roles: ['departamento','admin'] } },
+
+  {
+    path: '/documents',
+    name: 'documents',
+    component: DocumentsView,
+    meta: { requiresAuth: true, roles: ['recepcion', 'departamento', 'admin'] } 
+  },
+  
   // 404 simple
   { path: '/:pathMatch(.*)*', redirect: '/' }
+
 ]
 
 const router = createRouter({

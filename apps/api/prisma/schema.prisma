@@ -20,6 +20,7 @@ model Department {
   users            User[]
   ticketTypes      TicketType[]
   ticketsAsignados Ticket[]     @relation("TicketsDepartamentoActual")
+  Document         Document[]
 }
 
 model User {
@@ -46,6 +47,7 @@ model User {
   ticketsEstudiante Ticket[]        @relation("TicketsEstudiante")
   messages          TicketMessage[]
   auditLogs         AuditLog[]      @relation("UserAuditLogs")
+  Document          Document[]
 }
 
 enum Rol {
@@ -158,6 +160,11 @@ enum AuditAction {
   REASSIGN
   COMPLETE
   UPDATE_TICKET
+
+  UPLOAD_DOC
+  VIEW_DOC
+  EDIT_DOC
+  DELETE_DOC
 }
 
 model AuditLog {
@@ -173,5 +180,26 @@ model AuditLog {
   @@index([ticketId])
   @@index([actorId])
   @@index([action])
+  @@index([createdAt])
+}
+
+model Document {
+  id           Int         @id @default(autoincrement())
+  title        String
+  filename     String
+  originalName String
+  mime         String?
+  size         Int?
+  uploaderId   Int
+  uploader     User        @relation(fields: [uploaderId], references: [id])
+  departmentId Int?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  lastViewedAt DateTime?
+  lastEditedAt DateTime?
+
+  @@index([uploaderId])
+  @@index([departmentId])
   @@index([createdAt])
 }
