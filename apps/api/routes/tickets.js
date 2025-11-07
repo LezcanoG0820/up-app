@@ -92,6 +92,62 @@ router.post('/tickets', requireAuth, requireRole('estudiante'), async (req, res)
   }
 });
 
+// === NUEVO: Crear ticket por Recepción/Admin en nombre de un estudiante ===
+router.post('/tickets/by-reception', requireAuth, requireRole('recepcion', 'admin'), async (req, res) => {
+  try {
+    const {
+      studentId,
+      tipoId,
+      asunto,
+      descripcion,
+      cru,
+      categoriaConsulta,   // alias preferido
+      categoriaQueja       // compat
+    } = req.body || {}
+
+    if (!studentId || !tipoId || !asunto || !descripcion) {
+      return res.status(400).json({ ok: false, error: 'Faltan campos' })
+    }
+
+    const student = await prisma.user.findUnique({ where: { id: Number(studentId) } })
+    if (!student || student.rol !== 'estudiante') {
+      return res.status(400).json({ ok: false, error: 'Estudiante inválido' })
+    }
+
+    const tipo = await prisma.ticketType.findUnique({ where: { id: Number(tipoId) } })
+    if (!tipo) return res.status(400).json({ ok: false, error: 'Tipo inválido' })
+
+    const token = generateToken()
+    const category = categoriaConsulta ?? categoriaQueja ?? null
+
+    const ticket = await prisma.ticket.create({
+      data: {
+        token,
+        estudianteId: student.id,
+        departamentoActualId: tipo.departmentId,
+        tipoId: tipo.id,
+        asunto: String(asunto),
+        descripcion: String(descripcion),
+        cru: cru ? String(cru) : null,
+        categoriaQueja: category ? String(category) : null
+      },
+      include: { tipo: true, departamentoActual: true }
+    })
+
+    await addTicketLog({
+      ticketId: ticket.id,
+      action: 'created',
+      byUserId: req.sessionUser.id,
+      details: `Ticket creado por recepción para estudiante ${student.id}`
+    })
+
+    res.json({ ok: true, ticket: { ...ticket, categoriaConsulta: ticket.categoriaQueja } })
+  } catch (err) {
+    console.error('POST /tickets/by-reception error:', err)
+    res.status(500).json({ ok: false, error: 'Error creando ticket (recepción)' })
+  }
+})
+
 // Mis tickets (estudiante)
 router.get('/my/tickets', requireAuth, requireRole('estudiante'), async (req, res) => {
   const rows = await prisma.ticket.findMany({
@@ -129,7 +185,6 @@ router.get('/my/tickets/:id', requireAuth, requireRole('estudiante'), async (req
           orderBy: { createdAt: 'asc' },
           include: { autor: { select: { id: true, nombre: true, apellido: true, rol: true } } }
         },
-        // El historial está en AuditLog; lo devolvemos de forma básica y legible
         auditLogs: {
           orderBy: { createdAt: 'asc' },
           include: { actor: { select: { id: true, nombre: true, apellido: true, rol: true, email: true } } }

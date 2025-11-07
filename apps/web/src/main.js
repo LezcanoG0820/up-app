@@ -17,10 +17,12 @@ import AdminDocumentsView from './views/AdminDocumentsView.vue'
 import DeptDocumentsView from './views/DeptDocumentsView.vue'
 import DocumentsView from './views/DocumentsView.vue'
 
+// ⬇️ NUEVO: vista para crear tickets desde recepción
+import ReceptionNewTicketView from './views/ReceptionNewTicketView.vue'
 
 import { session, loadSession } from './store/session'
 
-// ⬇️ NUEVO: gestor de tema (claro/oscuro)
+// ⬇️ gestor de tema (claro/oscuro)
 import { applySavedTheme } from './utils/theme'
 
 // Definimos rutas con metadata de rol
@@ -37,6 +39,8 @@ const routes = [
 
   // Recepción
   { path: '/inbox/reception', name: 'inbox-reception', component: ReceptionInboxView, meta: { requiresAuth: true, roles: ['recepcion','admin'] } },
+  // ⬇️ NUEVO: crear ticket en nombre del estudiante
+  { path: '/reception/new-ticket', name: 'reception-new-ticket', component: ReceptionNewTicketView, meta: { requiresAuth: true, roles: ['recepcion','admin'] } },
 
   // Departamento
   { path: '/inbox/department', name: 'inbox-department', component: DeptInboxView, meta: { requiresAuth: true, roles: ['departamento','admin'] } },
@@ -45,7 +49,7 @@ const routes = [
   { path: '/tickets/:id', name: 'ticket-detail', component: TicketDetailView,
     meta: { requiresAuth: true, roles: ['estudiante','recepcion','departamento','admin'] } },
 
-  // ⬇️ NUEVO: vistas de gestión de documentos
+  // Vistas de gestión de documentos
   { path: '/docs/admin', name: 'docs-admin', component: AdminDocumentsView, meta: { requiresAuth: true, roles: ['recepcion','admin'] } },
   { path: '/docs/department', name: 'docs-dept', component: DeptDocumentsView, meta: { requiresAuth: true, roles: ['departamento','admin'] } },
 
@@ -58,7 +62,6 @@ const routes = [
   
   // 404 simple
   { path: '/:pathMatch(.*)*', redirect: '/' }
-
 ]
 
 const router = createRouter({
@@ -90,7 +93,6 @@ router.beforeEach(async (to) => {
 
   return true
 })
-
 
 applySavedTheme()
 

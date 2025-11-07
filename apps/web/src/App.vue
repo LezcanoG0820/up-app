@@ -15,6 +15,8 @@
         <!-- Recepción -->
         <template v-if="user?.rol === 'recepcion' || user?.rol === 'admin'">
           <RouterLink to="/inbox/reception">Bandeja Recepción</RouterLink>
+          <!-- ⬇️ NUEVO: acceso directo a creación por recepción -->
+          <RouterLink to="/reception/new-ticket">Nuevo ticket (recepción)</RouterLink>
         </template>
 
         <!-- Departamento -->

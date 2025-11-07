@@ -1,4 +1,4 @@
-// src/api.js
+// apps/web/src/api.js
 const BASE = ''
 
 async function request (path, { method = 'GET', body } = {}) {
@@ -39,11 +39,11 @@ export const authApi = {
 }
 
 export const ticketsApi = {
-  getTypes: () => request('/api/ticket-types'),
-  create:   (payload) => request('/api/tickets', { method: 'POST', body: payload }),
-  myList:   () => request('/api/my/tickets'),
-  myTickets: () => request('/api/my/tickets'),
-  myTicketById: (id) => request(`/api/my/tickets/${id}`),
+  getTypes:    () => request('/api/ticket-types'),
+  create:      (payload) => request('/api/tickets', { method: 'POST', body: payload }),
+  myList:      () => request('/api/my/tickets'),
+  myTickets:   () => request('/api/my/tickets'),
+  myTicketById:(id) => request(`/api/my/tickets/${id}`),
 }
 
 export const manageApi = {
@@ -54,41 +54,51 @@ export const manageApi = {
   reply:         (id, contenidoHtml) => request(`/api/tickets/${id}/messages`, { method: 'POST', body: { contenidoHtml } }),
   reassign:      (id, { departmentSlug, departmentId } = {}) => request(`/api/tickets/${id}/reassign`, { method: 'POST', body: { departmentSlug, departmentId } }),
   complete:      (id) => request(`/api/tickets/${id}/complete`, { method: 'POST' }),
-
   departments:   () => request('/api/departments'),
   getCRUs:       () => request('/api/crus'),
   getFacultades: () => request('/api/facultades')
 }
 
-// ---------- Documentos ----------
+// ---- Documentos ----
 async function requestForm(path, formData, method = 'POST') {
-  const res = await fetch(`${BASE}${path}`, { method, body: formData, credentials: 'include' })
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    body: formData,
+    credentials: 'include'
+  });
   if (!res.ok) {
-    let msg = `HTTP ${res.status}`
+    let msg = `HTTP ${res.status}`;
     try {
-      const j = await res.json()
-      if (j?.error) msg = j.error
+      const j = await res.json();
+      if (j?.error) msg = j.error;
     } catch {}
-    throw new Error(msg)
+    throw new Error(msg);
   }
-  const ct = res.headers.get('content-type') || ''
-  return ct.includes('application/json') ? res.json() : res.text()
+  const ct = res.headers.get('content-type') || '';
+  return ct.includes('application/json') ? res.json() : res.text();
 }
 
 export const documentsApi = {
-  list:   (params = {}) => request(`/api/documents${qs(params)}`),
+  list: (params = {}) => request(`/api/documents${qs(params)}`),
   upload: ({ file, title, departmentId }) => {
     const fd = new FormData()
+    fd.append('file', file)
     if (title) fd.append('title', title)
     if (departmentId) fd.append('departmentId', String(departmentId))
-    fd.append('file', file)
     return requestForm('/api/documents/upload', fd, 'POST')
   },
   view: (id) => request(`/api/documents/${id}/view`, { method: 'PATCH' }),
-  rename: (id, { title }) => request(`/api/documents/${id}`, { method: 'PATCH', body: { title } }),
+  downloadUrl: (id) => `/api/documents/${id}/download`,
+  rename: (id, payload) => request(`/api/documents/${id}`, { method: 'PATCH', body: payload }),
   remove: (id) => request(`/api/documents/${id}`, { method: 'DELETE' }),
+}
 
-  // URLs puras para <embed>/<img>/descarga
-  previewUrl:  (id) => `/api/documents/${id}/preview`,
-  downloadUrl: (id) => `/api/documents/${id}/download`
+// Recepción (estudiantes + tickets en su nombre) ====
+export const studentsApi = {
+  search: (q) => request(`/api/students/search${qs({ q })}`),
+  create: (payload) => request('/api/students', { method: 'POST', body: payload }),
+}
+
+export const receptionTicketsApi = {
+  createForStudent: (payload) => request('/api/tickets/by-reception', { method: 'POST', body: payload }),
 }
