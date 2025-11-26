@@ -2,6 +2,7 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const { requireAuth, requireRole } = require('../middlewares/auth');
+const { createNotification } = require('../utils/notifications'); // ⬅️ NUEVO
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -10,13 +11,12 @@ const router = express.Router();
    Helpers
    ======================== */
 async function addTicketLog({ ticketId, action, byUserId, details }) {
-  // Usa el modelo/relaciones reales del schema: AuditLog + actor
   try {
     return await prisma.auditLog.create({
       data: {
         ticketId,
         actorId: byUserId ?? null,
-        action, // 'CREATE_TICKET' | 'ADD_REPLY' | 'REASSIGN' | 'COMPLETE' | 'UPDATE_TICKET'
+        action, // 'CREATE_TICKET' | 'ADD_REPLY' | 'REASSIGN' | 'COMPLETE' | 'UPDATE_TICKET' | ...
         details: details ? String(details) : null,
       }
     });
@@ -107,7 +107,6 @@ router.get('/admin/tickets', requireAuth, requireRole('recepcion', 'admin'), asy
   try {
     const { q, estado, date_from, date_to } = req.query;
 
-    // Normalizamos el query
     const qRaw   = typeof q === 'string' ? q.trim() : '';
     const qUpper = qRaw.toUpperCase();
 
@@ -124,15 +123,10 @@ router.get('/admin/tickets', requireAuth, requireRole('recepcion', 'admin'), asy
       ...(qRaw
         ? {
             OR: [
-              // token: exacto o parcial, tratando el patrón en mayúsculas también (por si guardas SIU-AAAA-XXXXXX)
               { token: { equals: qRaw } },
               { token: { contains: qRaw } },
               { token: { contains: qUpper } },
-
-              // asunto
               { asunto: { contains: qRaw } },
-
-              // estudiante.* (incluye cédula)
               {
                 estudiante: {
                   OR: [
@@ -294,7 +288,7 @@ function safeCsv(v) {
 }
 
 /* ========================
-   Bandeja Departamento (filtro por q = token o cédula)
+   Bandeja Departamento
    ======================== */
 router.get('/dept/tickets', requireAuth, requireRole('departamento', 'admin'), async (req, res) => {
   try {
@@ -376,38 +370,6 @@ router.get('/tickets/:id', requireAuth, requireRole('recepcion', 'departamento',
    Acciones sobre ticket
    ======================== */
 
-// Responder (texto enriquecido simple HTML)
-router.post('/tickets/:id/messages', requireAuth, requireRole('recepcion', 'departamento', 'admin'), async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    const { contenidoHtml } = req.body || {};
-    if (!contenidoHtml) return res.status(400).json({ ok: false, error: 'Falta contenidoHtml' });
-
-    const t = await prisma.ticket.findUnique({ where: { id } });
-    if (!t) return res.status(404).json({ ok: false, error: 'Ticket no existe' });
-
-    await prisma.ticketMessage.create({
-      data: {
-        ticketId: id,
-        autorUserId: req.sessionUser.id,
-        contenidoHtml: String(contenidoHtml),
-      },
-    });
-
-    await addTicketLog({
-      ticketId: id,
-      action: 'ADD_REPLY',
-      byUserId: req.sessionUser.id,
-      details: `Respuesta agregada`,
-    });
-
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('POST /tickets/:id/messages error:', err);
-    res.status(500).json({ ok: false, error: 'Error respondiendo' });
-  }
-});
-
 // Reasignar
 router.post('/tickets/:id/reassign', requireAuth, requireRole('recepcion', 'admin'), async (req, res) => {
   try {
@@ -434,6 +396,15 @@ router.post('/tickets/:id/reassign', requireAuth, requireRole('recepcion', 'admi
       details: `Reasignado a ${target.nombre} (${target.id})`,
     });
 
+    // ⬇️ NUEVO: notificación
+    await createNotification(prisma, {
+      type: 'TICKET_REASSIGNED',
+      message: `Ticket ${t.token} reasignado a ${target.nombre}`,
+      ticketId: t.id,
+      actorId: req.sessionUser.id,
+      departmentId: target.id
+    });
+
     res.json({ ok: true, ticket: t });
   } catch (err) {
     console.error('POST /tickets/:id/reassign error:', err);
@@ -456,6 +427,15 @@ router.post('/tickets/:id/complete', requireAuth, requireRole('recepcion', 'depa
       action: 'COMPLETE',
       byUserId: req.sessionUser.id,
       details: `Marcado como completado`
+    });
+
+    // ⬇️ NUEVO: notificación
+    await createNotification(prisma, {
+      type: 'TICKET_COMPLETED',
+      message: `Ticket ${t.token} marcado como completado`,
+      ticketId: t.id,
+      actorId: req.sessionUser.id,
+      departmentId: t.departamentoActualId
     });
 
     res.json({ ok: true, ticket: t });

@@ -48,6 +48,11 @@ model User {
   messages          TicketMessage[]
   auditLogs         AuditLog[]      @relation("UserAuditLogs")
   Document          Document[]
+
+  // Relación con lecturas de notificaciones
+  NotificationRead NotificationRead[]
+  // Como actor opcional en notificaciones
+  Notification     Notification[]   @relation("UserAsActor")
 }
 
 enum Rol {
@@ -202,4 +207,44 @@ model Document {
   @@index([uploaderId])
   @@index([departmentId])
   @@index([createdAt])
+}
+
+/**
+ * ===========================
+ * NOTIFICACIONES (NUEVO)
+ * ===========================
+ */
+
+enum NotificationType {
+  TICKET_CREATED
+  TICKET_REPLIED
+  TICKET_REASSIGNED
+  TICKET_COMPLETED
+}
+
+model Notification {
+  id           Int              @id @default(autoincrement())
+  type         NotificationType
+  message      String
+  ticketId     Int?
+  actorId      Int?
+  actor        User?            @relation("UserAsActor", fields: [actorId], references: [id])
+  departmentId Int?
+  createdAt    DateTime         @default(now())
+
+  reads        NotificationRead[]
+
+  @@index([createdAt])
+  @@index([departmentId])
+}
+
+model NotificationRead {
+  userId         Int
+  notificationId Int
+  readAt         DateTime @default(now())
+
+  user           User         @relation(fields: [userId], references: [id])
+  notification   Notification @relation(fields: [notificationId], references: [id])
+
+  @@id([userId, notificationId])
 }

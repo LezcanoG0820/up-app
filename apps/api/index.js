@@ -8,8 +8,8 @@ const { PrismaClient } = require('@prisma/client')
 const authRoutes = require('./routes/auth')
 const ticketRoutes = require('./routes/tickets')
 const manageRoutes = require('./routes/manage')
-const documentsRoutes = require('./routes/documents')
-const studentsRoutes = require('./routes/students') // ⬅️ NUEVO
+const documentsRoutes = require('./routes/documents') // si no existe, comentalo
+const notificationsRoutes = require('./routes/notifications') // ⬅️ NUEVO
 
 const app = express()
 const prisma = new PrismaClient()
@@ -24,6 +24,7 @@ app.use(cors({
 // --------- JSON primero ------------------------
 app.use(express.json())
 
+// (opcional en prod detrás de proxy)
 app.set('trust proxy', 1)
 
 // --------- SESIÓN ANTES DE LAS RUTAS -----------
@@ -34,6 +35,7 @@ app.use(session({
   cookie: {
     httpOnly: true,
     sameSite: 'lax'
+    // secure: true  // <— solo en HTTPS
   }
 }))
 
@@ -61,8 +63,10 @@ app.get('/db-check', async (_req, res) => {
 app.use('/auth', authRoutes)
 app.use('/api', manageRoutes)
 app.use('/api', ticketRoutes)
-if (documentsRoutes) app.use('/api/documents', documentsRoutes)
-app.use('/api', studentsRoutes) 
+if (documentsRoutes) app.use('/api', documentsRoutes)
+
+// ⬇️ NUEVO: notificaciones
+app.use('/api', notificationsRoutes)
 
 // --------- ARRANQUE ----------------------------
 app.listen(PORT, () => {
