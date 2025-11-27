@@ -10,7 +10,12 @@
       <fieldset>
         <legend><strong>1) Buscar estudiante</strong></legend>
         <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;">
-          <input v-model.trim="q" placeholder="Cédula, nombre, apellido o email" @keyup.enter="search" style="max-width:340px;">
+          <input
+            v-model.trim="q"
+            placeholder="Cédula, nombre, apellido o email"
+            @keyup.enter="search"
+            style="max-width:340px;"
+          >
           <button class="btn-secondary" @click="search">Buscar</button>
         </div>
 
@@ -19,7 +24,12 @@
           <table>
             <thead>
               <tr>
-                <th>#</th><th>Nombre</th><th>Cédula</th><th>Email</th><th>Facultad</th><th>Acción</th>
+                <th>#</th>
+                <th>Nombre</th>
+                <th>Cédula</th>
+                <th>Email</th>
+                <th>Facultad</th>
+                <th>Acción</th>
               </tr>
             </thead>
             <tbody>
@@ -29,7 +39,9 @@
                 <td>{{ s.cedula }}</td>
                 <td>{{ s.email }}</td>
                 <td>{{ s.facultad || '-' }}</td>
-                <td><button class="btn-secondary" @click="pickStudent(s)">Usar</button></td>
+                <td>
+                  <button class="btn-secondary" @click="pickStudent(s)">Usar</button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -62,7 +74,9 @@
           </select>
 
           <div style="display:flex; gap:.5rem; align-items:center;">
-            <button :disabled="creating" @click="createStudent">{{ creating ? 'Creando…' : 'Crear estudiante' }}</button>
+            <button :disabled="creating" @click="createStudent">
+              {{ creating ? 'Creando…' : 'Crear estudiante' }}
+            </button>
             <span class="text-success" v-if="createMsg">{{ createMsg }}</span>
             <span class="text-danger" v-if="createErr">{{ createErr }}</span>
           </div>
@@ -72,7 +86,9 @@
       <section v-if="student">
         <div class="card">
           <strong>Estudiante seleccionado:</strong>
-          <div class="text-muted">{{ student.nombre }} {{ student.apellido }} — {{ student.cedula }} — {{ student.email }}</div>
+          <div class="text-muted">
+            {{ student.nombre }} {{ student.apellido }} — {{ student.cedula }} — {{ student.email }}
+          </div>
         </div>
       </section>
     </section>
@@ -83,16 +99,56 @@
         <legend><strong>3) Datos del ticket</strong></legend>
 
         <div class="grid-gap" style="max-width:720px;">
+
+          <!-- Departamento destino (antes "Tipo") -->
           <div>
-            <label>Tipo</label>
+            <label>Departamento destino</label>
             <select v-model.number="form.tipoId">
-              <option value="">Seleccione…</option>
-              <option v-for="t in tipos" :key="t.id" :value="t.id">{{ t.nombre }}</option>
+              <option value="">Seleccione departamento…</option>
+              <option
+                v-for="t in tipos"
+                :key="t.id"
+                :value="t.id"
+              >
+                {{ t.nombre }}
+              </option>
             </select>
           </div>
 
-          <input v-model.trim="form.asunto" placeholder="Asunto">
-          <textarea v-model.trim="form.descripcion" rows="4" placeholder="Descripción"></textarea>
+          <!-- Asunto con opción "Otros" -->
+          <div>
+            <label>Asunto</label>
+            <select
+              v-model="asuntoPreset"
+              @change="syncAsuntoFromPreset"
+            >
+              <option value="">Seleccione asunto rápido (opcional)…</option>
+              <option value="Pagos">Pagos</option>
+              <option value="Errores de pago">Errores de pago</option>
+              <option value="Pruebas">Pruebas</option>
+              <option value="Resultados">Resultados</option>
+              <option value="_other">Otros (escribir manualmente)</option>
+            </select>
+            <input
+              v-model.trim="form.asunto"
+              placeholder="Asunto"
+              style="margin-top:.5rem;"
+            >
+          </div>
+
+          <!-- Descripción + detalle extra de la consulta -->
+          <div class="grid-gap">
+            <textarea
+              v-model.trim="form.descripcion"
+              rows="3"
+              placeholder="Descripción breve de la consulta"
+            ></textarea>
+            <textarea
+              v-model.trim="form.detalleExtra"
+              rows="4"
+              placeholder="Detalle adicional de la consulta (opcional)"
+            ></textarea>
+          </div>
 
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:.5rem;">
             <input v-model.trim="form.cru" placeholder="CRU/Extensión (opcional)">
@@ -123,7 +179,7 @@ const q = ref('')
 const results = ref([])
 const searching = ref(false)
 
-const newS = ref({ nombre:'', apellido:'', cedula:'', email:'', facultad:'' })
+const newS = ref({ nombre: '', apellido: '', cedula: '', email: '', facultad: '' })
 const creating = ref(false)
 const createMsg = ref('')
 const createErr = ref('')
@@ -131,11 +187,23 @@ const createErr = ref('')
 const student = ref(null)
 
 const tipos = ref([])
-const facultades = ref([]) // ⬅️ aquí guardamos las 19 facultades
-const form = ref({ tipoId: '', asunto:'', descripcion:'', cru:'', categoriaConsulta:'' })
+const facultades = ref([])
+
+// formulario de ticket
+const form = ref({
+  tipoId: '',
+  asunto: '',
+  descripcion: '',
+  detalleExtra: '',
+  cru: '',
+  categoriaConsulta: ''
+})
 const submitting = ref(false)
 const okMsg = ref('')
 const errMsg = ref('')
+
+// asunto rápido (select) + "Otros"
+const asuntoPreset = ref('')
 
 async function search () {
   searching.value = true
@@ -149,6 +217,7 @@ async function search () {
     searching.value = false
   }
 }
+
 function pickStudent (s) {
   student.value = s
   okMsg.value = ''
@@ -156,7 +225,8 @@ function pickStudent (s) {
 }
 
 async function createStudent () {
-  createMsg.value = ''; createErr.value = ''
+  createMsg.value = ''
+  createErr.value = ''
   if (!newS.value.nombre || !newS.value.apellido || !newS.value.cedula || !newS.value.email) {
     createErr.value = 'Completa nombre, apellido, cédula y email'
     return
@@ -166,7 +236,7 @@ async function createStudent () {
     const j = await studentsApi.create(newS.value)
     student.value = j.student
     createMsg.value = 'Estudiante creado'
-    newS.value = { nombre:'', apellido:'', cedula:'', email:'', facultad:'' }
+    newS.value = { nombre: '', apellido: '', cedula: '', email: '', facultad: '' }
   } catch (e) {
     createErr.value = String(e?.message || e)
   } finally {
@@ -174,22 +244,38 @@ async function createStudent () {
   }
 }
 
+function syncAsuntoFromPreset () {
+  if (asuntoPreset.value && asuntoPreset.value !== '_other') {
+    form.value.asunto = asuntoPreset.value
+  } else if (asuntoPreset.value === '_other') {
+    form.value.asunto = ''
+  }
+}
+
 async function createTicket () {
-  okMsg.value = ''; errMsg.value = ''
+  okMsg.value = ''
+  errMsg.value = ''
+
   if (!student.value?.id || !form.value.tipoId || !form.value.asunto || !form.value.descripcion) {
-    errMsg.value = 'Completa tipo, asunto y descripción'
+    errMsg.value = 'Completa departamento, asunto y descripción'
     return
   }
+
   submitting.value = true
   try {
+    const descripcionFinal = form.value.detalleExtra
+      ? `${form.value.descripcion}\n\nDetalle adicional:\n${form.value.detalleExtra}`
+      : form.value.descripcion
+
     await receptionTicketsApi.createForStudent({
       studentId: student.value.id,
       tipoId: form.value.tipoId,
       asunto: form.value.asunto,
-      descripcion: form.value.descripcion,
+      descripcion: descripcionFinal,
       cru: form.value.cru || null,
       categoriaConsulta: form.value.categoriaConsulta || null
     })
+
     okMsg.value = 'Ticket creado'
     setTimeout(() => router.push({ name: 'inbox-reception' }), 600)
   } catch (e) {
@@ -204,7 +290,6 @@ onMounted(async () => {
     const j1 = await ticketsApi.getTypes()
     tipos.value = j1.tipos || []
 
-    // Cargar facultades desde backend (19 facultades)
     const j2 = await manageApi.getFacultades()
     facultades.value = Array.isArray(j2?.facultades) ? j2.facultades : []
   } catch (e) {

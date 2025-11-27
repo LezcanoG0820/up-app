@@ -2,7 +2,7 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const { requireAuth, requireRole } = require('../middlewares/auth');
-const { createNotification } = require('../utils/notifications'); // ⬅️ NUEVO
+const { createNotification } = require('../utils/notifications'); // si no usas notificaciones, puedes quitar esta línea
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -14,14 +14,14 @@ function generateToken() {
   const seq = Math.floor(Math.random() * 1_000_000);
   return `SIU-${y}-${String(seq).padStart(6, '0')}`;
 }
+
 async function addTicketLog({ ticketId, action, byUserId, details }) {
   try {
-    // IMPORTANTE: en tu esquema el modelo se llama AuditLog (NO TicketLog).
     return await prisma.auditLog.create({
       data: {
         ticketId,
         actorId: byUserId ?? null,
-        action: 'CREATE_TICKET' === action ? 'CREATE_TICKET' : action, // compat
+        action, // debe coincidir con enum AuditAction
         details: details ? String(details) : null,
       }
     });
@@ -49,8 +49,8 @@ router.post('/tickets', requireAuth, requireRole('estudiante'), async (req, res)
       asunto,
       descripcion,
       cru,
-      categoriaConsulta,   // nombre preferido
-      categoriaQueja       // compatibilidad
+      categoriaConsulta,
+      categoriaQueja
     } = req.body || {};
 
     if (!tipoId || !asunto || !descripcion) {
@@ -84,17 +84,18 @@ router.post('/tickets', requireAuth, requireRole('estudiante'), async (req, res)
       ticketId: ticket.id,
       action: 'CREATE_TICKET',
       byUserId: req.sessionUser.id,
-      details: `Ticket creado por estudiante`
+      details: 'Ticket creado por estudiante'
     });
 
-    // ⬇️ NUEVO: notificación para administrativos
-    await createNotification(prisma, {
-      type: 'TICKET_CREATED',
-      message: `Ticket ${ticket.token} creado`,
-      ticketId: ticket.id,
-      actorId: req.sessionUser.id,
-      departmentId: ticket.departamentoActualId
-    });
+    if (createNotification) {
+      await createNotification(prisma, {
+        type: 'TICKET_CREATED',
+        message: `Ticket ${ticket.token} creado`,
+        ticketId: ticket.id,
+        actorId: req.sessionUser.id,
+        departmentId: ticket.departamentoActualId
+      });
+    }
 
     res.json({ ok: true, ticket: { ...ticket, categoriaConsulta: ticket.categoriaQueja } });
   } catch (err) {
@@ -102,6 +103,85 @@ router.post('/tickets', requireAuth, requireRole('estudiante'), async (req, res)
     res.status(500).json({ ok: false, error: 'Error al crear ticket' });
   }
 });
+
+// Crear ticket EN NOMBRE de un estudiante (recepción/admin)
+router.post(
+  '/tickets/by-reception',
+  requireAuth,
+  requireRole('recepcion', 'admin'),
+  async (req, res) => {
+    try {
+      const {
+        studentId,
+        tipoId,
+        asunto,
+        descripcion,
+        cru,
+        categoriaConsulta,
+        categoriaQueja
+      } = req.body || {};
+
+      if (!studentId || !tipoId || !asunto || !descripcion) {
+        return res.status(400).json({ ok: false, error: 'Faltan campos' });
+      }
+
+      const estudiante = await prisma.user.findUnique({
+        where: { id: Number(studentId) }
+      });
+
+      if (!estudiante || estudiante.rol !== 'estudiante') {
+        return res.status(400).json({ ok: false, error: 'Estudiante inválido' });
+      }
+
+      const tipo = await prisma.ticketType.findUnique({
+        where: { id: Number(tipoId) }
+      });
+      if (!tipo) return res.status(400).json({ ok: false, error: 'Tipo inválido' });
+
+      const token = generateToken();
+      const category = categoriaConsulta ?? categoriaQueja ?? null;
+
+      const ticket = await prisma.ticket.create({
+        data: {
+          token,
+          estudianteId: estudiante.id,
+          departamentoActualId: tipo.departmentId,
+          tipoId: tipo.id,
+          asunto: String(asunto),
+          descripcion: String(descripcion),
+          cru: cru ? String(cru) : null,
+          categoriaQueja: category ? String(category) : null
+        },
+        include: {
+          tipo: true,
+          departamentoActual: true
+        }
+      });
+
+      await addTicketLog({
+        ticketId: ticket.id,
+        action: 'CREATE_TICKET',
+        byUserId: req.sessionUser.id,
+        details: 'Ticket creado por recepción/admin'
+      });
+
+      if (createNotification) {
+        await createNotification(prisma, {
+          type: 'TICKET_CREATED',
+          message: `Ticket ${ticket.token} creado por recepción`,
+          ticketId: ticket.id,
+          actorId: req.sessionUser.id,
+          departmentId: ticket.departamentoActualId
+        });
+      }
+
+      res.json({ ok: true, ticket: { ...ticket, categoriaConsulta: ticket.categoriaQueja } });
+    } catch (err) {
+      console.error('Error creando ticket by-reception:', err);
+      res.status(500).json({ ok: false, error: 'Error al crear ticket (recepción)' });
+    }
+  }
+);
 
 // Mis tickets (estudiante)
 router.get('/my/tickets', requireAuth, requireRole('estudiante'), async (req, res) => {
@@ -125,13 +205,13 @@ router.get('/my/tickets', requireAuth, requireRole('estudiante'), async (req, re
   res.json({ ok: true, tickets });
 });
 
-// === Detalle de MI ticket (estudiante) ===
+// Detalle de MI ticket (estudiante)
 router.get('/my/tickets/:id', requireAuth, requireRole('estudiante'), async (req, res) => {
   try {
     const id = Number(req.params.id);
 
     const t = await prisma.ticket.findFirst({
-      where: { id, estudianteId: req.sessionUser.id }, // solo si me pertenece
+      where: { id, estudianteId: req.sessionUser.id },
       include: {
         tipo: true,
         departamentoActual: true,
@@ -178,17 +258,18 @@ router.post('/tickets/:id/messages', requireAuth, requireRole('recepcion', 'depa
       ticketId: id,
       action: 'ADD_REPLY',
       byUserId: req.sessionUser.id,
-      details: `Respuesta agregada`,
+      details: 'Respuesta agregada',
     });
 
-    // ⬇️ NUEVO: notificación para administrativos del depto actual
-    await createNotification(prisma, {
-      type: 'TICKET_REPLIED',
-      message: `Nueva respuesta en ${t.token}`,
-      ticketId: t.id,
-      actorId: req.sessionUser.id,
-      departmentId: t.departamentoActualId
-    });
+    if (createNotification) {
+      await createNotification(prisma, {
+        type: 'TICKET_REPLIED',
+        message: `Nueva respuesta en ${t.token}`,
+        ticketId: t.id,
+        actorId: req.sessionUser.id,
+        departmentId: t.departamentoActualId
+      });
+    }
 
     res.json({ ok: true });
   } catch (err) {

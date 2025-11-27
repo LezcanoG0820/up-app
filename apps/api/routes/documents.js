@@ -1,170 +1,301 @@
 // apps/api/routes/documents.js
-const express = require('express')
-const fs = require('fs')
-const path = require('path')
-const multer = require('multer')
-const { PrismaClient } = require('@prisma/client')
-const { requireAuth, requireRole } = require('../middlewares/auth')
+const express = require('express');
+const { PrismaClient } = require('@prisma/client');
+const { requireAuth, requireRole } = require('../middlewares/auth');
 
-const prisma = new PrismaClient()
-const router = express.Router()
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 
-// Permisos: recepción, admin y departamentos
-const canUseDocs = requireRole('admin', 'recepcion', 'departamento')
+const prisma = new PrismaClient();
+const router = express.Router();
 
-// ---- storage ----
-const uploadsDir = path.join(__dirname, '..', 'uploads')
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true })
+/* ========================
+   Configuración de subida
+   ======================== */
+
+const UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'docs');
+
+// Asegurar que exista la carpeta de uploads
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
 
 const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadsDir),
-  filename: (_req, file, cb) => {
-    // prefijo de tiempo para evitar colisiones
-    const safe = file.originalname.replace(/[^\w.\-() ]+/g, '_')
-    cb(null, `${Date.now()}__${safe}`)
-  }
-})
-
-// (opcional) filtrar tipos
-const allowed = new Set([
-  'application/pdf',
-  // Office
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',      // .xlsx
-  'application/vnd.ms-excel',                                              // .xls
-  'application/msword',                                                    // .doc
-  // imágenes
-  'image/png', 'image/jpeg',
-  // texto/csv
-  'text/plain', 'text/csv', 'application/csv'
-])
-
-const upload = multer({
-  storage,
-  fileFilter: (_req, file, cb) => {
-    if (allowed.size === 0 || allowed.has(file.mimetype)) return cb(null, true)
-    cb(new Error('Tipo de archivo no permitido'))
+  destination: function (_req, _file, cb) {
+    cb(null, UPLOAD_DIR);
   },
-  limits: { fileSize: 50 * 1024 * 1024 } // 50MB
-})
+  filename: function (_req, file, cb) {
+    const ext = path.extname(file.originalname);
+    const base = path.basename(file.originalname, ext);
+    const safeBase = base.replace(/[^a-zA-Z0-9_\-\.]/g, '_');
+    const ts = Date.now();
+    cb(null, `${ts}_${safeBase}${ext}`);
+  }
+});
 
-/* =========================
-   LISTAR
-   ========================= */
-router.get('/', requireAuth, canUseDocs, async (req, res) => {
-  try {
-    const { q } = req.query
-    const where = q
-      ? {
-          OR: [
-            { title: { contains: String(q), mode: 'insensitive' } },
-            { originalName: { contains: String(q), mode: 'insensitive' } }
-          ]
+const upload = multer({ storage });
+
+/* ========================
+   Helpers
+   ======================== */
+
+function buildWhereForList(user, query) {
+  const { departmentId, scope } = query || {};
+  const where = {};
+
+  // Filtro por departamento explícito si viene por query
+  if (departmentId) {
+    where.departmentId = Number(departmentId);
+  } else if (user.rol === 'departamento' && user.departamentoId) {
+    // Por defecto, un usuario de departamento ve su propio departamento
+    where.departmentId = user.departamentoId;
+  }
+
+  // Filtro de "solo mis documentos"
+  if (scope === 'mine') {
+    where.uploaderId = user.id;
+  }
+
+  return where;
+}
+
+function docToJson(doc) {
+  return {
+    id: doc.id,
+    title: doc.title,
+    filename: doc.filename,
+    originalName: doc.originalName,
+    mime: doc.mime,
+    size: doc.size,
+    departmentId: doc.departmentId,
+    departmentNombre: doc.department ? doc.department.nombre : null,
+    uploaderId: doc.uploaderId,
+    uploaderNombre: doc.uploader
+      ? `${doc.uploader.nombre} ${doc.uploader.apellido}`.trim()
+      : null,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+    lastViewedAt: doc.lastViewedAt,
+    lastEditedAt: doc.lastEditedAt
+  };
+}
+
+/* ========================
+   Listar documentos
+   ======================== */
+
+router.get(
+  '/documents',
+  requireAuth,
+  requireRole('recepcion', 'departamento', 'admin'),
+  async (req, res) => {
+    try {
+      const where = buildWhereForList(req.sessionUser, req.query);
+
+      const docs = await prisma.document.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          uploader: { select: { nombre: true, apellido: true } },
+          department: { select: { id: true, nombre: true } }
         }
-      : {}
+      });
 
-    const docs = await prisma.document.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true, title: true, filename: true, originalName: true,
-        mime: true, size: true, createdAt: true, lastViewedAt: true, updatedAt: true,
-        uploader: { select: { id: true, nombre: true, apellido: true } }
-      }
-    })
-    res.json({ ok: true, documents: docs })
-  } catch (e) {
-    console.error('list error:', e)
-    res.status(500).json({ ok: false, error: 'Error listando documentos' })
-  }
-})
-
-/* =========================
-   SUBIR
-   ========================= */
-router.post('/upload', requireAuth, canUseDocs, upload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ ok: false, error: 'Falta archivo' })
-    const title = (req.body.title || req.file.originalname).toString()
-
-    const doc = await prisma.document.create({
-      data: {
-        title,
-        filename: req.file.filename,
-        originalName: req.file.originalname,      // 👈 requerido por el schema
-        mime: req.file.mimetype,
-        size: req.file.size,
-        // 👇 RELACIÓN CORRECTA SEGÚN TU SCHEMA
-        uploader: { connect: { id: req.sessionUser.id } }
-      },
-      select: {
-        id: true, title: true, filename: true, originalName: true,
-        mime: true, size: true, createdAt: true,
-        uploader: { select: { id: true, nombre: true, apellido: true } }
-      }
-    })
-
-    res.json({ ok: true, document: doc })
-  } catch (e) {
-    console.error('upload error:', e)
-    res.status(500).json({ ok: false, error: e.message || 'Error subiendo archivo' })
-  }
-})
-
-/* =========================
-   MARCAR VISTO
-   ========================= */
-router.patch('/:id/view', requireAuth, canUseDocs, async (req, res) => {
-  try {
-    const id = Number(req.params.id)
-    await prisma.document.update({
-      where: { id },
-      data: { lastViewedAt: new Date() }
-    })
-    res.json({ ok: true })
-  } catch (e) {
-    console.error('view error:', e)
-    res.status(500).json({ ok: false, error: 'Error marcando visualización' })
-  }
-})
-
-/* =========================
-   DESCARGAR
-   ========================= */
-router.get('/:id/download', requireAuth, canUseDocs, async (req, res) => {
-  const id = Number(req.params.id)
-  const doc = await prisma.document.findUnique({ where: { id } })
-  if (!doc) return res.status(404).json({ ok: false, error: 'No existe' })
-
-  const filepath = path.join(uploadsDir, doc.filename)
-  if (!fs.existsSync(filepath)) {
-    return res.status(404).json({ ok: false, error: 'Archivo no encontrado' })
-  }
-
-  const downloadName = doc.originalName || doc.filename.replace(/^\d+__/, '')
-  res.download(filepath, downloadName)
-})
-
-/* =========================
-   ELIMINAR
-   ========================= */
-router.delete('/:id', requireAuth, canUseDocs, async (req, res) => {
-  try {
-    const id = Number(req.params.id)
-    const doc = await prisma.document.findUnique({ where: { id } })
-    if (!doc) return res.status(404).json({ ok: false, error: 'No existe' })
-
-    const filepath = path.join(uploadsDir, doc.filename)
-    if (fs.existsSync(filepath)) {
-      try { fs.unlinkSync(filepath) } catch (_) {}
+      res.json({
+        ok: true,
+        documents: docs.map(docToJson)
+      });
+    } catch (err) {
+      console.error('GET /api/documents error:', err);
+      res.status(500).json({ ok: false, error: 'Error listando documentos' });
     }
-
-    await prisma.document.delete({ where: { id } })
-    res.json({ ok: true })
-  } catch (e) {
-    console.error('delete error:', e)
-    res.status(500).json({ ok: false, error: 'Error eliminando' })
   }
-})
+);
 
-module.exports = router
+/* ========================
+   Subir documento
+   ======================== */
+
+router.post(
+  '/documents/upload',
+  requireAuth,
+  requireRole('recepcion', 'departamento', 'admin'),
+  upload.single('file'),
+  async (req, res) => {
+    try {
+      const file = req.file;
+      const { title, departmentId } = req.body || {};
+
+      if (!file) {
+        return res.status(400).json({ ok: false, error: 'Falta archivo' });
+      }
+
+      // Departamento asociado:
+      // - si viene como parámetro, se usa ese
+      // - si el usuario es de "departamento", se usa su propio depto
+      // - admin/recepción pueden dejarlo vacío (null) si así lo desean
+      let deptId = null;
+      if (departmentId) {
+        deptId = Number(departmentId);
+      } else if (req.sessionUser.departamentoId) {
+        deptId = req.sessionUser.departamentoId;
+      }
+
+      const doc = await prisma.document.create({
+        data: {
+          title: title && String(title).trim().length
+            ? String(title).trim()
+            : file.originalname,
+          filename: file.filename,
+          originalName: file.originalname,
+          mime: file.mimetype,
+          size: file.size,
+          uploaderId: req.sessionUser.id,
+          departmentId: deptId
+        },
+        include: {
+          uploader: { select: { nombre: true, apellido: true } },
+          department: { select: { id: true, nombre: true } }
+        }
+      });
+
+      res.json({ ok: true, document: docToJson(doc) });
+    } catch (err) {
+      console.error('POST /api/documents/upload error:', err);
+      res.status(500).json({ ok: false, error: 'Error subiendo documento' });
+    }
+  }
+);
+
+/* ========================
+   Marcar como visto
+   ======================== */
+
+router.patch(
+  '/documents/:id/view',
+  requireAuth,
+  requireRole('recepcion', 'departamento', 'admin'),
+  async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+
+      const doc = await prisma.document.update({
+        where: { id },
+        data: { lastViewedAt: new Date() },
+        include: {
+          uploader: { select: { nombre: true, apellido: true } },
+          department: { select: { id: true, nombre: true } }
+        }
+      });
+
+      res.json({ ok: true, document: docToJson(doc) });
+    } catch (err) {
+      console.error('PATCH /api/documents/:id/view error:', err);
+      res.status(500).json({ ok: false, error: 'Error marcando como visto' });
+    }
+  }
+);
+
+/* ========================
+   Descargar documento
+   ======================== */
+
+router.get(
+  '/documents/:id/download',
+  requireAuth,
+  requireRole('recepcion', 'departamento', 'admin'),
+  async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const doc = await prisma.document.findUnique({ where: { id } });
+
+      if (!doc) {
+        return res.status(404).json({ ok: false, error: 'No existe' });
+      }
+
+      const filepath = path.join(UPLOAD_DIR, doc.filename);
+
+      if (!fs.existsSync(filepath)) {
+        return res.status(404).json({ ok: false, error: 'Archivo no encontrado en el servidor' });
+      }
+
+      res.download(filepath, doc.originalName || doc.filename);
+    } catch (err) {
+      console.error('GET /api/documents/:id/download error:', err);
+      res.status(500).json({ ok: false, error: 'Error descargando documento' });
+    }
+  }
+);
+
+/* ========================
+   Renombrar documento
+   ======================== */
+
+router.patch(
+  '/documents/:id',
+  requireAuth,
+  requireRole('recepcion', 'departamento', 'admin'),
+  async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { title } = req.body || {};
+
+      if (!title || !String(title).trim().length) {
+        return res.status(400).json({ ok: false, error: 'Título requerido' });
+      }
+
+      const doc = await prisma.document.update({
+        where: { id },
+        data: {
+          title: String(title).trim(),
+          lastEditedAt: new Date()
+        },
+        include: {
+          uploader: { select: { nombre: true, apellido: true } },
+          department: { select: { id: true, nombre: true } }
+        }
+      });
+
+      res.json({ ok: true, document: docToJson(doc) });
+    } catch (err) {
+      console.error('PATCH /api/documents/:id error:', err);
+      res.status(500).json({ ok: false, error: 'Error renombrando documento' });
+    }
+  }
+);
+
+/* ========================
+   Eliminar documento
+   ======================== */
+
+router.delete(
+  '/documents/:id',
+  requireAuth,
+  requireRole('recepcion', 'departamento', 'admin'),
+  async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+
+      const doc = await prisma.document.findUnique({ where: { id } });
+      if (!doc) {
+        return res.status(404).json({ ok: false, error: 'No existe' });
+      }
+
+      const filepath = path.join(UPLOAD_DIR, doc.filename);
+
+      await prisma.document.delete({ where: { id } });
+
+      if (fs.existsSync(filepath)) {
+        fs.unlinkSync(filepath);
+      }
+
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('DELETE /api/documents/:id error:', err);
+      res.status(500).json({ ok: false, error: 'Error eliminando documento' });
+    }
+  }
+);
+
+module.exports = router;

@@ -1,193 +1,346 @@
+<!-- apps/web/src/views/DocumentsView.vue -->
 <template>
-  <main style="padding:1rem; max-width:1100px; margin:auto;">
-    <h1 style="margin:0 0 .75rem 0;">Gestión de documentos</h1>
+  <main class="grid-gap" style="max-width: 1000px; margin: auto;">
+    <header class="grid-gap">
+      <h1 style="margin: 0;">Documentos</h1>
+      <p class="text-muted" style="margin: 0;">
+        Gestiona los documentos compartidos entre recepción y departamentos.
+      </p>
+    </header>
 
-    <section class="grid-gap" style="margin-bottom:1rem;">
-      <div class="grid-gap" style="grid-template-columns: 1fr auto;">
-        <input v-model.trim="q" placeholder="Buscar por título o nombre de archivo…" @keyup.enter="load" />
-        <button class="btn-secondary" @click="load">Buscar</button>
-      </div>
+    <!-- Zona de subida -->
+    <section class="card grid-gap">
+      <h2 style="margin: 0 0 .5rem 0; font-size: 1.1rem;">Subir documento</h2>
 
-      <fieldset v-if="canUpload" class="grid-gap">
-        <legend><strong>Subir documento</strong></legend>
-        <input v-model.trim="title" placeholder="Título (opcional)" />
-        <input type="file" @change="onPick" />
-        <div style="display:flex; gap:.5rem; align-items:center;">
-          <button :disabled="!file || uploading" @click="doUpload">
+      <div class="grid-gap" style="max-width: 700px;">
+        <input
+          v-model.trim="uploadTitle"
+          type="text"
+          placeholder="Título (opcional, por defecto se usa el nombre del archivo)"
+        />
+
+        <!-- Selector de departamento solo para admin/recepción -->
+        <div v-if="canChooseDepartment" class="grid-gap">
+          <label style="font-weight: 500;">Departamento destino (opcional)</label>
+          <select v-model="uploadDepartmentId">
+            <option value="">Sin departamento específico</option>
+            <option
+              v-for="d in departments"
+              :key="d.id"
+              :value="String(d.id)"
+            >
+              {{ d.nombre }}
+            </option>
+          </select>
+        </div>
+
+        <div style="display: flex; gap: .5rem; flex-wrap: wrap; align-items: center;">
+          <input type="file" @change="onFileChange" />
+          <button :disabled="uploading || !uploadFile" @click="doUpload">
             {{ uploading ? 'Subiendo…' : 'Subir' }}
           </button>
-          <span v-if="uploadMsg" class="text-success">{{ uploadMsg }}</span>
-          <span v-if="error" class="text-danger">{{ error }}</span>
+          <span class="text-danger" v-if="uploadError">{{ uploadError }}</span>
+          <span class="text-success" v-if="uploadOk">{{ uploadOk }}</span>
         </div>
-        <div v-if="file" class="text-muted" style="font-size:.9rem;">
-          Seleccionado: {{ file?.name }} ({{ prettyBytes(file?.size) }})
-        </div>
-      </fieldset>
+      </div>
     </section>
 
-    <section>
-      <template v-if="loading && docs.length === 0">
-        Cargando…
-      </template>
+    <!-- Filtros sencillos -->
+    <section class="card grid-gap">
+      <div style="display: flex; gap: .75rem; flex-wrap: wrap; align-items: center;">
+        <strong>Filtros:</strong>
 
-      <template v-else>
-        <table v-if="docs.length">
+        <button
+          class="btn-secondary"
+          :disabled="loading"
+          @click="reloadAll"
+        >
+          Todos
+        </button>
+
+        <button
+          class="btn-secondary"
+          :disabled="loading"
+          @click="reloadMine"
+        >
+          Mis documentos
+        </button>
+      </div>
+    </section>
+
+    <!-- Tabla de documentos -->
+    <section class="card">
+      <div v-if="loading" class="text-muted">Cargando documentos…</div>
+      <div v-else-if="documents.length === 0" class="text-muted">
+        No hay documentos registrados.
+      </div>
+      <div v-else style="overflow: auto;">
+        <table>
           <thead>
             <tr>
-              <th style="width:28%;">Título / Archivo</th>
-              <th style="width:16%;">Subido por</th>
-              <th style="width:15%;">Creado</th>
-              <th style="width:17%;">Últ. visto</th>
-              <th style="width:10%;">Tamaño</th>
-              <th style="width:14%;">Acciones</th>
+              <th>Título</th>
+              <th>Archivo</th>
+              <th>Departamento</th>
+              <th>Subido por</th>
+              <th>Fecha</th>
+              <th style="min-width: 190px;">Acciones</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="d in docs" :key="d.id">
+            <tr v-for="doc in documents" :key="doc.id">
               <td>
-                <div style="font-weight:600;">{{ d.title || '—' }}</div>
-                <div class="text-muted" style="font-size:.9rem;">{{ d.originalName }}</div>
+                <span v-if="!isEditing(doc.id)">{{ doc.title }}</span>
+                <input
+                  v-else
+                  v-model.trim="editTitle"
+                  type="text"
+                  style="max-width: 230px;"
+                />
               </td>
+              <td>{{ doc.originalName || doc.filename }}</td>
+              <td>{{ doc.departmentNombre || '—' }}</td>
+              <td>{{ doc.uploaderNombre || '—' }}</td>
+              <td>{{ formatDate(doc.createdAt) }}</td>
               <td>
-                <div>{{ d.uploadedByName || '—' }}</div>
-                <div class="text-muted" style="font-size:.85rem;">ID {{ d.uploadedById ?? '—' }}</div>
-              </td>
-              <td>
-                <div>{{ fmt(d.createdAt) }}</div>
-              </td>
-              <td>
-                <div>{{ d.lastViewedAt ? fmt(d.lastViewedAt) : '—' }}</div>
-                <div v-if="d.lastViewedByName" class="text-muted" style="font-size:.85rem;">
-                  por {{ d.lastViewedByName }}
+                <div style="display: flex; flex-wrap: wrap; gap: .25rem;">
+                  <button class="btn-secondary" @click="viewDoc(doc)">Ver</button>
+                  <button class="btn-secondary" @click="downloadDoc(doc)">Descargar</button>
+
+                  <button
+                    class="btn-secondary"
+                    v-if="!isEditing(doc.id)"
+                    @click="startEdit(doc)"
+                  >
+                    Renombrar
+                  </button>
+                  <button
+                    class="btn-secondary"
+                    v-else
+                    @click="saveEdit(doc)"
+                  >
+                    Guardar
+                  </button>
+                  <button
+                    class="btn-secondary"
+                    v-if="isEditing(doc.id)"
+                    @click="cancelEdit"
+                  >
+                    Cancelar
+                  </button>
+
+                  <button class="btn-secondary" @click="removeDoc(doc)">
+                    Eliminar
+                  </button>
                 </div>
-              </td>
-              <td>{{ prettyBytes(d.size) }}</td>
-              <td style="white-space:nowrap; display:flex; gap:.5rem;">
-                <button class="btn-secondary" @click="openDoc(d)">Ver</button>
-                <a :href="downloadUrl(d.id)" target="_blank" rel="noopener">
-                  <button class="btn-secondary" type="button">Descargar</button>
-                </a>
-                <button 
-                  v-if="canUpload" 
-                  class="btn-secondary" 
-                  @click="removeDoc(d)" 
-                  :disabled="removingId === d.id"
-                  title="Eliminar">
-                  {{ removingId === d.id ? 'Eliminando…' : 'Eliminar' }}
-                </button>
               </td>
             </tr>
           </tbody>
         </table>
-
-        <p v-else class="text-muted">No hay documentos.</p>
-      </template>
+      </div>
+      <p class="text-danger" v-if="listError" style="margin-top: .5rem;">{{ listError }}</p>
     </section>
   </main>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { session } from '../store/session'
-import { documentsApi } from '../api'
+import { ref, computed, onMounted } from 'vue';
+import { documentsApi, manageApi } from '../api';
+import { session } from '../store/session';
 
-const docs = ref([])
-const loading = ref(false)
-const error = ref('')
-const q = ref('')
+const documents = ref([]);
+const loading = ref(false);
+const listError = ref('');
 
-const file = ref(null)
-const title = ref('')
-const uploading = ref(false)
-const uploadMsg = ref('')
-const removingId = ref(0)
+// Datos de subida
+const uploadTitle = ref('');
+const uploadFile = ref(null);
+const uploadDepartmentId = ref('');
+const uploading = ref(false);
+const uploadError = ref('');
+const uploadOk = ref('');
 
-const canUpload = computed(() => {
-  const r = session.user?.rol
-  return r === 'recepcion' || r === 'admin'
-})
+// Departamentos para admin/recepción
+const departments = ref([]);
 
-function fmt(ts) {
+// Edición de título
+const editingId = ref(null);
+const editTitle = ref('');
+
+// Usuario actual
+const user = computed(() => session.user || null);
+const canChooseDepartment = computed(() => {
+  return user.value && (user.value.rol === 'admin' || user.value.rol === 'recepcion');
+});
+
+/* ========================
+   Carga de documentos
+   ======================== */
+
+async function loadDocuments(params = {}) {
+  loading.value = true;
+  listError.value = '';
   try {
-    const d = typeof ts === 'number' ? new Date(ts) : new Date(ts)
-    return d.toLocaleString()
-  } catch { return '—' }
-}
-function prettyBytes(bytes = 0) {
-  const b = Number(bytes) || 0
-  if (b < 1024) return `${b} B`
-  const kb = b / 1024
-  if (kb < 1024) return `${kb.toFixed(1)} KB`
-  const mb = kb / 1024
-  if (mb < 1024) return `${mb.toFixed(1)} MB`
-  const gb = mb / 1024
-  return `${gb.toFixed(1)} GB`
-}
-function downloadUrl(id) {
-  return documentsApi.downloadUrl(id)
-}
-
-async function load() {
-  loading.value = true
-  error.value = ''
-  try {
-    const { documents } = await documentsApi.list({ q: q.value || undefined })
-    docs.value = Array.isArray(documents) ? documents : []
+    const j = await documentsApi.list(params);
+    const arr = j?.documents || j?.docs || [];
+    documents.value = Array.isArray(arr) ? arr : [];
   } catch (e) {
-    error.value = String(e?.message || e)
+    console.error(e);
+    listError.value = String(e?.message || e);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
-function onPick(e) {
-  const f = e.target.files?.[0]
-  file.value = f || null
-  uploadMsg.value = ''
+function reloadAll() {
+  loadDocuments({});
+}
+
+function reloadMine() {
+  loadDocuments({ scope: 'mine' });
+}
+
+/* ========================
+   Subida de archivos
+   ======================== */
+
+function onFileChange(e) {
+  const files = e.target.files;
+  uploadFile.value = files && files[0] ? files[0] : null;
+  uploadError.value = '';
+  uploadOk.value = '';
 }
 
 async function doUpload() {
-  if (!file.value) return
-  uploading.value = true
-  error.value = ''
-  uploadMsg.value = ''
+  uploadError.value = '';
+  uploadOk.value = '';
+
+  if (!uploadFile.value) {
+    uploadError.value = 'Selecciona un archivo';
+    return;
+  }
+
+  uploading.value = true;
   try {
-    await documentsApi.upload({ file: file.value, title: title.value })
-    title.value = ''
-    file.value = null
-    uploadMsg.value = 'Documento subido'
-    await load()
+    const payload = {
+      file: uploadFile.value,
+      title: uploadTitle.value || undefined
+    };
+
+    if (canChooseDepartment.value && uploadDepartmentId.value) {
+      payload.departmentId = uploadDepartmentId.value;
+    }
+
+    const j = await documentsApi.upload(payload);
+    const doc = j?.document;
+    if (doc) {
+      documents.value.unshift(doc);
+    }
+
+    uploadOk.value = 'Documento subido';
+    uploadTitle.value = '';
+    uploadFile.value = null;
+    uploadDepartmentId.value = '';
   } catch (e) {
-    error.value = String(e?.message || e)
+    console.error(e);
+    uploadError.value = String(e?.message || e);
   } finally {
-    uploading.value = false
+    uploading.value = false;
   }
 }
 
-async function openDoc(d) {
-  try {
-    await documentsApi.view(d.id)
-  } catch {}
-  if (d.path) {
-    window.open(d.path, '_blank', 'noopener')
-  } else {
-    window.open(downloadUrl(d.id), '_blank', 'noopener')
-  }
-}
+/* ========================
+   Acciones sobre documentos
+   ======================== */
 
-async function removeDoc(d) {
-  if (!confirm(`Eliminar "${d.originalName}"?`)) return
-  removingId.value = d.id
-  error.value = ''
+async function viewDoc(doc) {
   try {
-    await documentsApi.remove(d.id)
-    await load()
+    await documentsApi.view(doc.id);
+    // No abrimos nada extra aquí: solo marcamos como visto
   } catch (e) {
-    error.value = String(e?.message || e)
-  } finally {
-    removingId.value = 0
+    console.error(e);
   }
 }
 
-onMounted(load)
+function downloadDoc(doc) {
+  const url = documentsApi.downloadUrl(doc.id);
+  window.open(url, '_blank');
+}
+
+function isEditing(id) {
+  return editingId.value === id;
+}
+
+function startEdit(doc) {
+  editingId.value = doc.id;
+  editTitle.value = doc.title || doc.originalName || '';
+}
+
+function cancelEdit() {
+  editingId.value = null;
+  editTitle.value = '';
+}
+
+async function saveEdit(doc) {
+  if (!editTitle.value.trim()) {
+    return;
+  }
+  try {
+    const j = await documentsApi.rename(doc.id, { title: editTitle.value.trim() });
+    const updated = j?.document;
+    if (updated) {
+      const idx = documents.value.findIndex(d => d.id === doc.id);
+      if (idx !== -1) {
+        documents.value[idx] = updated;
+      }
+    }
+    cancelEdit();
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function removeDoc(doc) {
+  const ok = window.confirm(`¿Eliminar el documento "${doc.title || doc.originalName}"?`);
+  if (!ok) return;
+  try {
+    await documentsApi.remove(doc.id);
+    documents.value = documents.value.filter(d => d.id !== doc.id);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+/* ========================
+   Utilidades
+   ======================== */
+
+function formatDate(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+}
+
+/* ========================
+   Carga inicial
+   ======================== */
+
+onMounted(async () => {
+  // Cargar departamentos solo para admin/recepción
+  if (canChooseDepartment.value) {
+    try {
+      const j = await manageApi.departments();
+      departments.value = j?.departments || [];
+    } catch (e) {
+      console.error('Error cargando departamentos:', e);
+    }
+  }
+
+  await loadDocuments({});
+});
 </script>

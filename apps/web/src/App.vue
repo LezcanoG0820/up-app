@@ -12,16 +12,11 @@
           <RouterLink to="/my/tickets">Mis tickets</RouterLink>
         </template>
 
-        <!-- Recepción -->
+        <!-- Recepción / Admin -->
         <template v-if="user?.rol === 'recepcion' || user?.rol === 'admin'">
           <RouterLink to="/inbox/reception">Bandeja Recepción</RouterLink>
-          <!-- ⬇️ NUEVO: acceso directo a creación por recepción -->
+          <!-- acceso directo a creación por recepción -->
           <RouterLink to="/reception/new-ticket">Nuevo ticket (recepción)</RouterLink>
-        </template>
-
-        <!-- Departamento -->
-        <template v-if="user?.rol === 'departamento' || user?.rol === 'admin'">
-          <RouterLink to="/inbox/department">Bandeja Departamento</RouterLink>
         </template>
 
         <!-- Documentos (administrativo/departamento/admin) -->
@@ -55,7 +50,7 @@
       </div>
     </header>
 
-    <!-- 3.4.2 - Demo de tema/estilos (solo admin/recepción y con ?demo=1) -->
+    <!-- Demo de tema/estilos (solo admin/recepción y con ?demo=1) -->
     <section
       v-if="showThemeDemo && (user?.rol === 'admin' || user?.rol === 'recepcion')"
       class="card"
@@ -146,7 +141,7 @@
         </fieldset>
       </div>
     </section>
-    <!-- /3.4.2 -->
+    <!-- /demo -->
 
     <main style="padding-top:1rem;">
       <RouterView />
@@ -172,7 +167,7 @@ async function logout () {
   router.push('/login')
 }
 
-/** 3.4.2: mostrar demo solo con ?demo=1 (y no para estudiantes) */
+// Mostrar demo solo con ?demo=1 (y no para estudiantes)
 const showThemeDemo = computed(() => {
   try {
     const sp = new URLSearchParams(window.location.search)

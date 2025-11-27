@@ -2,7 +2,8 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const { requireAuth, requireRole } = require('../middlewares/auth');
-const { createNotification } = require('../utils/notifications'); // ⬅️ NUEVO
+const { createNotification } = require('../utils/notifications'); // si no tienes notificaciones, puedes quitar esta línea
+const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -23,6 +24,11 @@ async function addTicketLog({ ticketId, action, byUserId, details }) {
   } catch (e) {
     console.error('addTicketLog error:', e);
   }
+}
+
+async function hashOnce(pwd) {
+  const salt = await bcrypt.genSalt(10);
+  return bcrypt.hash(pwd, salt);
 }
 
 /* ========================
@@ -96,6 +102,112 @@ router.get(
     } catch (err) {
       console.error('GET /departments error:', err);
       res.status(500).json({ ok: false, error: 'Error listando departamentos' });
+    }
+  }
+);
+
+/* ========================
+   Estudiantes (Recepción/Admin)
+   ======================== */
+
+// Buscar estudiantes por cédula, nombre, apellido o email
+router.get(
+  '/students/search',
+  requireAuth,
+  requireRole('recepcion', 'admin'),
+  async (req, res) => {
+    try {
+      const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+      if (!q) {
+        return res.json({ ok: true, students: [] });
+      }
+
+      const students = await prisma.user.findMany({
+        where: {
+          rol: 'estudiante',
+          OR: [
+            { cedula:   { contains: q } },
+            { nombre:   { contains: q } },
+            { apellido: { contains: q } },
+            { email:    { contains: q } },
+          ]
+        },
+        orderBy: { id: 'desc' },
+        select: {
+          id: true,
+          nombre: true,
+          apellido: true,
+          cedula: true,
+          email: true,
+          facultad: true,
+        }
+      });
+
+      res.json({ ok: true, students });
+    } catch (err) {
+      console.error('GET /students/search error:', err);
+      res.status(500).json({ ok: false, error: 'Error buscando estudiantes' });
+    }
+  }
+);
+
+// Crear estudiante nuevo desde recepción/admin
+router.post(
+  '/students',
+  requireAuth,
+  requireRole('recepcion', 'admin'),
+  async (req, res) => {
+    try {
+      const { nombre, apellido, cedula, email, facultad } = req.body || {};
+
+      if (!nombre || !apellido || !cedula || !email) {
+        return res.status(400).json({ ok: false, error: 'Faltan campos obligatorios' });
+      }
+
+      const existing = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { cedula: { equals: String(cedula) } },
+            { email:  { equals: String(email).toLowerCase() } },
+          ]
+        },
+        select: { id: true }
+      });
+
+      if (existing) {
+        return res.status(400).json({ ok: false, error: 'Ya existe un estudiante con esa cédula o email' });
+      }
+
+      const tempPassword = 'Temporal#2025'; // puedes cambiarlo luego
+      const passwordHash = await hashOnce(tempPassword);
+
+      const student = await prisma.user.create({
+        data: {
+          nombre: String(nombre),
+          apellido: String(apellido),
+          cedula: String(cedula),
+          email: String(email).toLowerCase(),
+          passwordHash,
+          rol: 'estudiante',
+          facultad: facultad ? String(facultad) : null,
+          twoFactorEnabled: false,
+          failedLoginCount: 0,
+        },
+        select: {
+          id: true,
+          nombre: true,
+          apellido: true,
+          cedula: true,
+          email: true,
+          facultad: true,
+          rol: true,
+        }
+      });
+
+      res.json({ ok: true, student });
+    } catch (err) {
+      console.error('POST /students error:', err);
+      res.status(500).json({ ok: false, error: 'Error creando estudiante' });
     }
   }
 );
@@ -282,13 +394,14 @@ router.get('/admin/tickets/export', requireAuth, requireRole('recepcion', 'admin
     res.status(500).json({ ok: false, error: 'Error exportando CSV' });
   }
 });
+
 function safeCsv(v) {
   const s = (v ?? '').toString();
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 /* ========================
-   Bandeja Departamento
+   Bandeja Departamento (filtro por q = token o cédula)
    ======================== */
 router.get('/dept/tickets', requireAuth, requireRole('departamento', 'admin'), async (req, res) => {
   try {
@@ -370,6 +483,48 @@ router.get('/tickets/:id', requireAuth, requireRole('recepcion', 'departamento',
    Acciones sobre ticket
    ======================== */
 
+// Responder (texto enriquecido simple HTML)
+router.post('/tickets/:id/messages', requireAuth, requireRole('recepcion', 'departamento', 'admin'), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { contenidoHtml } = req.body || {};
+    if (!contenidoHtml) return res.status(400).json({ ok: false, error: 'Falta contenidoHtml' });
+
+    const t = await prisma.ticket.findUnique({ where: { id } });
+    if (!t) return res.status(404).json({ ok: false, error: 'Ticket no existe' });
+
+    await prisma.ticketMessage.create({
+      data: {
+        ticketId: id,
+        autorUserId: req.sessionUser.id,
+        contenidoHtml: String(contenidoHtml),
+      },
+    });
+
+    await addTicketLog({
+      ticketId: id,
+      action: 'ADD_REPLY',
+      byUserId: req.sessionUser.id,
+      details: `Respuesta agregada`,
+    });
+
+    if (createNotification) {
+      await createNotification(prisma, {
+        type: 'TICKET_REPLIED',
+        message: `Nueva respuesta en ${t.token}`,
+        ticketId: t.id,
+        actorId: req.sessionUser.id,
+        departmentId: t.departamentoActualId
+      });
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('POST /tickets/:id/messages error:', err);
+    res.status(500).json({ ok: false, error: 'Error respondiendo' });
+  }
+});
+
 // Reasignar
 router.post('/tickets/:id/reassign', requireAuth, requireRole('recepcion', 'admin'), async (req, res) => {
   try {
@@ -396,14 +551,15 @@ router.post('/tickets/:id/reassign', requireAuth, requireRole('recepcion', 'admi
       details: `Reasignado a ${target.nombre} (${target.id})`,
     });
 
-    // ⬇️ NUEVO: notificación
-    await createNotification(prisma, {
-      type: 'TICKET_REASSIGNED',
-      message: `Ticket ${t.token} reasignado a ${target.nombre}`,
-      ticketId: t.id,
-      actorId: req.sessionUser.id,
-      departmentId: target.id
-    });
+    if (createNotification) {
+      await createNotification(prisma, {
+        type: 'TICKET_REASSIGNED',
+        message: `Ticket ${t.token} reasignado a ${target.nombre}`,
+        ticketId: t.id,
+        actorId: req.sessionUser.id,
+        departmentId: target.id
+      });
+    }
 
     res.json({ ok: true, ticket: t });
   } catch (err) {
@@ -429,14 +585,15 @@ router.post('/tickets/:id/complete', requireAuth, requireRole('recepcion', 'depa
       details: `Marcado como completado`
     });
 
-    // ⬇️ NUEVO: notificación
-    await createNotification(prisma, {
-      type: 'TICKET_COMPLETED',
-      message: `Ticket ${t.token} marcado como completado`,
-      ticketId: t.id,
-      actorId: req.sessionUser.id,
-      departmentId: t.departamentoActualId
-    });
+    if (createNotification) {
+      await createNotification(prisma, {
+        type: 'TICKET_COMPLETED',
+        message: `Ticket ${t.token} marcado como completado`,
+        ticketId: t.id,
+        actorId: req.sessionUser.id,
+        departmentId: t.departamentoActualId
+      });
+    }
 
     res.json({ ok: true, ticket: t });
   } catch (err) {
