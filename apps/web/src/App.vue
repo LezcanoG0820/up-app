@@ -3,32 +3,54 @@
     <header
       style="display:flex; gap:1rem; align-items:center; justify-content:space-between; border-bottom:1px solid #ddd; padding-bottom:.75rem;"
     >
-      <nav style="display:flex; gap:.75rem; flex-wrap:wrap; align-items:center;">
-        <RouterLink to="/">Inicio</RouterLink>
+      <!-- Bloque izquierdo: logo + nombre del sistema + navegación -->
+      <div style="display:flex; gap:1rem; align-items:flex-start; flex-wrap:wrap; flex:1;">
+        <!-- Logo + textos de institución -->
+        <div style="display:flex; align-items:center; gap:.75rem;">
+          <img
+            :src="upLogo"
+            alt="Universidad de Panamá"
+            style="height:48px; width:auto; object-fit:contain;"
+          />
+          <div style="display:flex; flex-direction:column;">
+            <span style="font-weight:700; font-size:1rem; line-height:1.2;">
+              Sistema de Gestión de la DGA
+            </span>
+            <span style="font-size:.85rem; color:var(--muted, #6b7280); line-height:1.2;">
+              Universidad de Panamá – Dirección General de Admisión
+            </span>
+          </div>
+        </div>
 
-        <!-- Estudiante -->
-        <template v-if="user?.rol === 'estudiante'">
-          <RouterLink to="/tickets/new">Nuevo ticket</RouterLink>
-          <RouterLink to="/my/tickets">Mis tickets</RouterLink>
-        </template>
+        <!-- Navegación -->
+        <nav style="display:flex; gap:.75rem; flex-wrap:wrap; align-items:center;">
+          <RouterLink to="/">Inicio</RouterLink>
 
-        <!-- Recepción -->
-        <template v-if="user?.rol === 'recepcion' || user?.rol === 'admin'">
-          <RouterLink to="/inbox/reception">Bandeja Recepción</RouterLink>
-          <RouterLink to="/reception/new-ticket">Nuevo ticket (recepción)</RouterLink>
-        </template>
+          <!-- Estudiante -->
+          <template v-if="user?.rol === 'estudiante'">
+            <RouterLink to="/tickets/new">Nuevo ticket</RouterLink>
+            <RouterLink to="/my/tickets">Mis tickets</RouterLink>
+          </template>
 
-        <!-- Departamento -->
-        <template v-if="user?.rol === 'departamento' || user?.rol === 'admin'">
-          <RouterLink to="/inbox/department">Bandeja Departamento</RouterLink>
-        </template>
+          <!-- Recepción -->
+          <template v-if="user?.rol === 'recepcion' || user?.rol === 'admin'">
+            <RouterLink to="/inbox/reception">Bandeja Recepción</RouterLink>
+            <RouterLink to="/reception/new-ticket">Nuevo ticket (recepción)</RouterLink>
+          </template>
 
-        <!-- Documentos (administrativo/departamento/admin) -->
-        <template v-if="user && (user.rol === 'recepcion' || user.rol === 'departamento' || user.rol === 'admin')">
-          <RouterLink to="/documents">Documentos</RouterLink>
-        </template>
-      </nav>
+          <!-- Departamento -->
+          <template v-if="user?.rol === 'departamento' || user?.rol === 'admin'">
+            <RouterLink to="/inbox/department">Bandeja Departamento</RouterLink>
+          </template>
 
+          <!-- Documentos (administrativo/departamento/admin) -->
+          <template v-if="user && (user.rol === 'recepcion' || user.rol === 'departamento' || user.rol === 'admin')">
+            <RouterLink to="/documents">Documentos</RouterLink>
+          </template>
+        </nav>
+      </div>
+
+      <!-- Bloque derecho: notificaciones, tema, usuario -->
       <div style="display:flex; align-items:center; gap:.5rem;">
         <!-- Campana de notificaciones (no para estudiantes) -->
         <NotificationsBell v-if="user && user.rol !== 'estudiante'" />
@@ -46,7 +68,9 @@
         </button>
 
         <template v-if="user">
-          <span style="margin-left:.25rem; margin-right:.5rem;">{{ user.nombre }} ({{ user.rol }})</span>
+          <span style="margin-left:.25rem; margin-right:.5rem;">
+            {{ user.nombre }} ({{ user.rol }})
+          </span>
           <button @click="logout">Salir</button>
         </template>
         <template v-else>
@@ -162,6 +186,7 @@ import { authApi } from './api'
 import { useRouter } from 'vue-router'
 import { themeName, toggleTheme } from './utils/theme'
 import NotificationsBell from './components/NotificationsBell.vue'
+import upLogo from './assets/UP-logo.png'
 
 const router = useRouter()
 const user = computed(() => session.user)

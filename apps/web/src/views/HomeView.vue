@@ -3,18 +3,22 @@
     <!-- HERO -->
     <section class="hero card">
       <div class="hero-left">
-        <h1 class="hero-title">UP · SIU</h1>
-        <p class="hero-sub">Sistema de consultas</p>
+        <h1 class="hero-title">Sistema de Gestión de la DGA</h1>
+        <p class="hero-sub">
+          Universidad de Panamá · Dirección General de Admisión
+        </p>
         <div class="hero-badges">
-          <span class="badge">Sesión: <strong>{{ user?.nombre }}</strong></span>
+          <span class="badge">
+            Sesión: <strong>{{ user?.nombre }}</strong>
+          </span>
           <span class="badge badge-role">{{ user?.rol }}</span>
         </div>
       </div>
       <div class="hero-right">
         <img
           class="hero-illustration"
-          alt="Dashboard"
-          src="https://dummyimage.com/420x220/f7f8fa/2563eb&text=UP+SIU"
+          alt="Universidad de Panamá"
+          :src="upLogo"
         />
       </div>
     </section>
@@ -31,7 +35,9 @@
         >
           <div class="qc-icon">📝</div>
           <div class="qc-title">Nueva consulta</div>
-          <div class="qc-desc">Crear una consulta y enviarla al área correspondiente.</div>
+          <div class="qc-desc">
+            Crear una consulta y enviarla al área correspondiente.
+          </div>
         </RouterLink>
 
         <RouterLink
@@ -41,7 +47,9 @@
         >
           <div class="qc-icon">📁</div>
           <div class="qc-title">Mis consultas</div>
-          <div class="qc-desc">Seguimiento y detalle de tus consultas.</div>
+          <div class="qc-desc">
+            Seguimiento y detalle de tus consultas.
+          </div>
         </RouterLink>
 
         <!-- Recepción / Admin -->
@@ -52,7 +60,9 @@
         >
           <div class="qc-icon">📥</div>
           <div class="qc-title">Bandeja Recepción</div>
-          <div class="qc-desc">Ver, filtrar, reasignar y completar consultas.</div>
+          <div class="qc-desc">
+            Ver, filtrar, reasignar y completar consultas.
+          </div>
         </RouterLink>
 
         <!-- Departamento / Admin -->
@@ -63,7 +73,9 @@
         >
           <div class="qc-icon">🏢</div>
           <div class="qc-title">Bandeja Departamento</div>
-          <div class="qc-desc">Atender consultas asignadas a tu departamento.</div>
+          <div class="qc-desc">
+            Atender consultas asignadas a tu departamento.
+          </div>
         </RouterLink>
       </div>
     </section>
@@ -95,13 +107,12 @@
 <script setup>
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { session } from '../store/session'
+import upLogo from '../assets/UP-logo.png'
 
 const user = computed(() => session.user)
 
 /**
- * AGREGA / EDITA CONSEJOS AQUÍ:
- * - Cada item: { title: '...', text: '...' }
- * - `text` acepta HTML simple (negritas, enlaces internos, etc.)
+ * CONSEJOS DEL CARRUSEL
  */
 const TIPS = [
   {
@@ -122,7 +133,7 @@ const TIPS = [
   }
 ]
 
-// -------- Carousel simple (sin librerías) --------
+// -------- Carousel simple --------
 const currentSlide = ref(0)
 let timer = null
 
@@ -154,7 +165,6 @@ onBeforeUnmount(stopTimer)
   gap: 1rem;
 }
 
-/* Reutiliza estilos globales ya definidos (card, buttons...) y añade layout propio */
 .card{
   display: grid;
   gap: .75rem;
@@ -245,7 +255,6 @@ onBeforeUnmount(stopTimer)
 }
 .dot.active{ background: #2563eb; border-color:#2563eb; }
 
-/* Responsive stacks */
 @media (max-width: 900px){
   .hero{ grid-template-columns: 1fr; }
   .hero-right{ order: -1; }
