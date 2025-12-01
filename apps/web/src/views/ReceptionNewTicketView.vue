@@ -2,7 +2,9 @@
   <main class="grid-gap" style="max-width:1000px; margin:auto;">
     <header class="grid-gap">
       <h1 style="margin:0;">Nuevo ticket (Recepción)</h1>
-      <p class="text-muted" style="margin:0;">Crea o selecciona un estudiante y genera el ticket en su nombre.</p>
+      <p class="text-muted" style="margin:0;">
+        Crea o selecciona un estudiante y genera el ticket en su nombre.
+      </p>
     </header>
 
     <!-- Paso A: Buscar / Crear estudiante -->
@@ -100,11 +102,16 @@
 
         <div class="grid-gap" style="max-width:720px;">
 
-          <!-- Departamento destino (antes "Tipo") -->
-          <div>
+          <!-- Departamento destino (basado en tipo de ticket) -->
+          <div class="grid-gap">
             <label>Departamento destino</label>
-            <select v-model.number="form.tipoId">
-              <option value="">Seleccione departamento…</option>
+            <p class="text-muted" style="margin:0; font-size:.85rem;">
+              Selecciona el tipo de ticket. Cada tipo se envía automáticamente al departamento correspondiente.
+            </p>
+
+            <!-- Select clásico (se mantiene) -->
+            <select v-model.number="form.tipoId" style="margin-top:.35rem;">
+              <option value="">Seleccione tipo de ticket…</option>
               <option
                 v-for="t in tipos"
                 :key="t.id"
@@ -113,6 +120,23 @@
                 {{ t.nombre }}
               </option>
             </select>
+
+            <!-- Tarjetas grandes para operadores "dumb proof" -->
+            <div class="dept-grid">
+              <button
+                v-for="t in tipos"
+                :key="`card-${t.id}`"
+                type="button"
+                class="dept-card"
+                :class="{ 'dept-card-active': form.tipoId === t.id }"
+                @click="form.tipoId = t.id"
+              >
+                <div class="dept-card-title">{{ t.nombre }}</div>
+                <div v-if="t.slug" class="dept-card-sub">
+                  {{ t.slug }}
+                </div>
+              </button>
+            </div>
           </div>
 
           <!-- Asunto con opción "Otros" -->
@@ -152,7 +176,7 @@
 
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:.5rem;">
             <input v-model.trim="form.cru" placeholder="CRU/Extensión (opcional)">
-            <input v-model.trim="form.categoriaConsulta" placeholder="Categoría (opcional)">
+            <input v-model.trim="form.categoriaConsulta" placeholder="Detalles extra (opcional)">
           </div>
 
           <div style="display:flex; gap:.5rem; align-items:center;">
@@ -170,8 +194,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { ticketsApi, studentsApi, receptionTicketsApi, manageApi } from '../api'
 import { useRouter } from 'vue-router'
+import { ticketsApi, studentsApi, receptionTicketsApi, manageApi } from '../api'
 
 const router = useRouter()
 
@@ -297,3 +321,46 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+.dept-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.dept-card {
+  flex: 1 1 180px;
+  min-width: 160px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: inherit;
+}
+
+.dept-card:hover {
+  background: rgba(148, 163, 184, 0.15);
+  border-color: #94a3b8;
+}
+
+.dept-card-active {
+  background: #e0f2fe;
+  border-color: #0ea5e9;
+  color: #0f172a;
+}
+
+.dept-card-title {
+  font-weight: 600;
+}
+
+.dept-card-sub {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-top: 0.15rem;
+}
+</style>

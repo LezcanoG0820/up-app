@@ -1,52 +1,99 @@
 <template>
   <main style="padding:2rem; max-width:900px; margin:auto;">
+    <!-- Estados globales -->
     <div v-if="loading">Cargando…</div>
     <p v-if="error" style="color:crimson">{{ error }}</p>
 
-    <section v-if="!loading && ticket">
-      <h1>Ticket {{ ticket.token }}</h1>
+    <section v-if="!loading && ticket" class="grid-gap" style="display:flex; flex-direction:column; gap:1.5rem;">
+      <!-- ENCABEZADO + RESUMEN -->
+      <header>
+        <h1 style="margin:0 0 .25rem 0;">Ticket {{ ticket.token }}</h1>
+        <p style="margin:0; font-size:.9rem; color:#555;">
+          Creado: {{ fmt(ticket.createdAt) }}
+        </p>
+      </header>
 
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin:.75rem 0 1rem;">
-        <div><strong>Asunto:</strong> {{ ticket.asunto }}</div>
-        <div><strong>Estado:</strong> {{ ticket.estado }}</div>
-        <div><strong>Tipo:</strong> {{ ticket.tipo?.nombre || '-' }}</div>
-        <div><strong>Departamento actual:</strong> {{ ticket.departamentoActual?.nombre || '-' }}</div>
-        <div style="grid-column:1 / -1;"><strong>Descripción:</strong> {{ ticket.descripcion }}</div>
-        <div style="grid-column:1 / -1;">
-          <strong>Estudiante:</strong>
-          {{ ticket.estudiante?.nombre }} {{ ticket.estudiante?.apellido }}
-          ({{ ticket.estudiante?.email }}) — Cédula: {{ ticket.estudiante?.cedula }} — Facultad: {{ ticket.estudiante?.facultad || '-' }}
+      <section
+        style="border:1px solid #ddd; border-radius:8px; padding:1rem; display:grid; grid-template-columns:1fr 1fr; gap:.5rem;"
+      >
+        <div style="grid-column:1 / -1; font-weight:600;">Resumen</div>
+        <div>
+          <strong>Estado:</strong>
+          <span class="status-badge" :class="statusClass(ticket.estado)" style="margin-left:.25rem;">
+            {{ ticket.estado }}
+          </span>
         </div>
+        <div><strong>Departamento actual:</strong> {{ ticket.departamentoActual?.nombre || '-' }}</div>
+        <div><strong>Tipo:</strong> {{ ticket.tipo?.nombre || '-' }}</div>
         <div><strong>CRU:</strong> {{ ticket.cru || '-' }}</div>
         <div><strong>Categoría de consulta:</strong> {{ ticket.categoriaConsulta || ticket.categoriaQueja || '-' }}</div>
-        <div style="grid-column:1 / -1;"><strong>Creado:</strong> {{ fmt(ticket.createdAt) }}</div>
-      </div>
+      </section>
 
-      <!-- Mensajes -->
-      <h2 style="margin-top:1rem;">Mensajes</h2>
-      <div v-if="ticket.messages?.length">
-        <article
-          v-for="m in ticket.messages"
-          :key="m.id"
-          style="border:1px solid #ddd; border-radius:8px; padding:.75rem; margin:.5rem 0;"
-        >
-          <div style="font-size:.9rem; color:#666;">
-            {{ fmt(m.createdAt) }} — {{ m.autor?.nombre }} {{ m.autor?.apellido }} ({{ roleLabel(m.autor?.rol) }})
-          </div>
-          <div style="margin-top:.5rem;" v-html="m.contenidoHtml"></div>
-        </article>
-      </div>
-      <p v-else>No hay mensajes.</p>
+      <!-- ESTUDIANTE -->
+      <section
+        style="border:1px solid #ddd; border-radius:8px; padding:1rem; display:grid; grid-template-columns:1fr 1fr; gap:.5rem;"
+      >
+        <div style="grid-column:1 / -1; font-weight:600;">Estudiante</div>
+        <div style="grid-column:1 / -1;">
+          <strong>Nombre:</strong>
+          {{ ticket.estudiante?.nombre }} {{ ticket.estudiante?.apellido }}
+        </div>
+        <div>
+          <strong>Cédula:</strong>
+          {{ ticket.estudiante?.cedula || '-' }}
+        </div>
+        <div>
+          <strong>Email:</strong>
+          {{ ticket.estudiante?.email || '-' }}
+        </div>
+        <div style="grid-column:1 / -1;">
+          <strong>Facultad:</strong>
+          {{ ticket.estudiante?.facultad || '-' }}
+        </div>
+      </section>
 
-      <!-- Acciones SOLO staff (recepción/admin). Departamento también puede responder y completar -->
-      <div v-if="!isStudent" style="display:grid; gap:1rem; margin-top:1.5rem;">
+      <!-- ASUNTO + DESCRIPCIÓN -->
+      <section style="border:1px solid #ddd; border-radius:8px; padding:1rem; display:grid; gap:.5rem;">
+        <div><strong>Asunto:</strong> {{ ticket.asunto }}</div>
+        <div>
+          <strong>Descripción:</strong>
+          <div style="margin-top:.25rem; white-space:pre-wrap;">{{ ticket.descripcion }}</div>
+        </div>
+      </section>
+
+      <!-- MENSAJES -->
+      <section>
+        <h2 style="margin:0 0 .5rem 0;">Mensajes</h2>
+        <div v-if="ticket.messages?.length" style="display:flex; flex-direction:column; gap:.5rem;">
+          <article
+            v-for="m in ticket.messages"
+            :key="m.id"
+            class="msg-bubble"
+            :class="m.autor?.rol === 'estudiante' ? 'msg-student' : 'msg-staff'"
+          >
+            <div class="msg-meta">
+              {{ fmt(m.createdAt) }} —
+              {{ m.autor?.nombre }} {{ m.autor?.apellido }}
+              <span v-if="m.autor?.rol">({{ roleLabel(m.autor.rol) }})</span>
+            </div>
+            <div class="msg-body" v-html="m.contenidoHtml"></div>
+          </article>
+        </div>
+        <p v-else>No hay mensajes.</p>
+      </section>
+
+      <!-- ACCIONES (solo staff, no estudiante) -->
+      <section
+        v-if="!isStudent"
+        style="display:grid; gap:1rem; border:1px solid #ddd; border-radius:8px; padding:1rem;"
+      >
         <!-- Responder -->
-        <fieldset>
-          <legend><strong>Responder</strong></legend>
+        <fieldset style="border:1px solid #ddd; border-radius:6px; padding:.75rem;">
+          <legend style="padding:0 .25rem;"><strong>Responder</strong></legend>
           <textarea
             v-model="contenidoHtml"
             rows="4"
-            placeholder="Respuesta en HTML sencillo, p.ej.: <p>Estamos revisando</p>"
+            placeholder="Ingresa un mensaje para responder al ticket, por ejemplo: Estamos revisando su caso"
             style="width:100%;"
           ></textarea>
           <div style="margin-top:.5rem;">
@@ -57,32 +104,40 @@
           </div>
         </fieldset>
 
-        <!-- Reasignar: dropdown de departamentos (solo recepción/admin) -->
-        <fieldset v-if="isRecepcionOrAdmin">
-          <legend><strong>Reasignar</strong></legend>
+        <!-- Reasignar (solo recepción/admin) -->
+        <fieldset
+          v-if="isRecepcionOrAdmin"
+          style="border:1px solid #ddd; border-radius:6px; padding:.75rem;"
+        >
+          <legend style="padding:0 .25rem;"><strong>Reasignar</strong></legend>
           <select v-model.number="departmentId" style="min-width:280px;">
             <option :value="0" disabled>Selecciona departamento destino</option>
             <option v-for="d in departments" :key="d.id" :value="d.id">
               {{ d.nombre }} ({{ d.slug }})
             </option>
           </select>
-          <button @click="reasignar" :disabled="loadingReassign || !departmentId">
-            {{ loadingReassign ? 'Reasignando…' : 'Reasignar' }}
-          </button>
+          <div style="margin-top:.5rem;">
+            <button @click="reasignar" :disabled="loadingReassign || !departmentId">
+              {{ loadingReassign ? 'Reasignando…' : 'Reasignar ticket' }}
+            </button>
+          </div>
         </fieldset>
 
-        <!-- Completar (recepción, departamento y admin) -->
-        <fieldset>
-          <legend><strong>Marcar como completado</strong></legend>
-          <button @click="completar" :disabled="loadingComplete || ticket.estado === 'completado'">
-            {{ ticket.estado === 'completado' ? 'Ya completado' : (loadingComplete ? 'Marcando…' : 'Completar') }}
+        <!-- Completar -->
+        <fieldset style="border:1px solid #ddd; border-radius:6px; padding:.75rem;">
+          <legend style="padding:0 .25rem;"><strong>Completar</strong></legend>
+          <p style="margin:0 0 .5rem 0; font-size:.9rem;">
+            Marca el ticket como completado cuando la gestión haya finalizado.
+          </p>
+          <button @click="completar" :disabled="loadingComplete">
+            {{ loadingComplete ? 'Marcando…' : 'Marcar como completado' }}
           </button>
         </fieldset>
-      </div>
+      </section>
 
-      <!-- Historial -->
-      <section style="margin-top:1.25rem;">
-        <h2>Historial</h2>
+      <!-- HISTORIAL -->
+      <section>
+        <h2 style="margin:0 0 .5rem 0;">Historial</h2>
         <div v-if="ticket.auditLogs?.length">
           <div
             v-for="log in ticket.auditLogs"
@@ -90,7 +145,10 @@
             style="font-size:.9rem; padding:.25rem 0; border-bottom:1px dashed #ddd;"
           >
             {{ fmt(log.createdAt) }} — <strong>{{ auditLabel(log.action) }}</strong>
-            <span v-if="log.actor"> por {{ log.actor.nombre }} {{ log.actor.apellido }} ({{ roleLabel(log.actor.rol) }})</span>
+            <span v-if="log.actor">
+              &nbsp;por {{ log.actor.nombre }} {{ log.actor.apellido }}
+              ({{ roleLabel(log.actor.rol) }})
+            </span>
             <div v-if="log.details" style="color:#666">{{ log.details }}</div>
           </div>
         </div>
@@ -123,27 +181,56 @@ const loadingReassign = ref(false)
 const loadingComplete = ref(false)
 
 const isStudent = computed(() => session.user?.rol === 'estudiante')
-const isRecepcionOrAdmin = computed(() => session.user?.rol === 'recepcion' || session.user?.rol === 'admin')
+const isRecepcionOrAdmin = computed(
+  () => session.user?.rol === 'recepcion' || session.user?.rol === 'admin'
+)
 
 function fmt(d) {
-  try { return new Date(d).toLocaleString() } catch { return d }
+  try {
+    return new Date(d).toLocaleString()
+  } catch {
+    return d
+  }
 }
+
 function roleLabel(r) {
-  return r === 'recepcion' ? 'Recepción'
-       : r === 'departamento' ? 'Departamento'
-       : r === 'admin' ? 'Admin'
-       : 'Estudiante'
+  return r === 'recepcion'
+    ? 'Recepción'
+    : r === 'departamento'
+      ? 'Departamento'
+      : r === 'admin'
+        ? 'Admin'
+        : 'Estudiante'
 }
+
 function auditLabel(a) {
-  return (
-    {
-      CREATE_TICKET: 'Creación',
-      ADD_REPLY: 'Respuesta añadida',
-      REASSIGN: 'Reasignación',
-      COMPLETE: 'Completado',
-      UPDATE_TICKET: 'Actualización'
-    }[a] || a
-  )
+  switch (a) {
+    case 'ticket_created':
+      return 'Ticket creado'
+    case 'message_added':
+      return 'Nuevo mensaje'
+    case 'ticket_reassigned':
+      return 'Ticket reasignado'
+    case 'ticket_completed':
+      return 'Ticket completado'
+    default:
+      return a || ''
+  }
+}
+
+function statusClass(value) {
+  switch (value) {
+    case 'abierto':
+      return 'status-open'
+    case 'en_progreso':
+      return 'status-progress'
+    case 'completado':
+      return 'status-completed'
+    case 'cerrado':
+      return 'status-closed'
+    default:
+      return 'status-default'
+  }
 }
 
 async function load() {
@@ -175,6 +262,7 @@ async function enviarRespuesta() {
   if (!contenidoHtml.value) return
   loadingReply.value = true
   replyMsg.value = ''
+  error.value = ''
   try {
     await manageApi.reply(id, contenidoHtml.value)
     contenidoHtml.value = ''
@@ -190,6 +278,7 @@ async function enviarRespuesta() {
 async function reasignar() {
   if (!departmentId.value) return
   loadingReassign.value = true
+  error.value = ''
   try {
     await manageApi.reassign(id, { departmentId: departmentId.value })
     departmentId.value = 0
@@ -203,6 +292,7 @@ async function reasignar() {
 
 async function completar() {
   loadingComplete.value = true
+  error.value = ''
   try {
     await manageApi.complete(id)
     await load()
@@ -215,3 +305,62 @@ async function completar() {
 
 onMounted(load)
 </script>
+
+<style scoped>
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.status-open {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.status-progress {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-completed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-closed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-default {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.msg-bubble {
+  border-radius: 8px;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+}
+
+.msg-staff {
+  background: #f9fafb;
+}
+
+.msg-student {
+  background: #ecfeff;
+}
+
+.msg-meta {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.msg-body {
+  margin-top: 0.5rem;
+}
+</style>

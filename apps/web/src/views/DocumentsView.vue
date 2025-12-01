@@ -255,10 +255,11 @@ async function doUpload() {
 async function viewDoc(doc) {
   try {
     await documentsApi.view(doc.id);
-    // No abrimos nada extra aquí: solo marcamos como visto
   } catch (e) {
     console.error(e);
   }
+  const url = documentsApi.downloadUrl(doc.id);
+  window.open(url, '_blank');
 }
 
 function downloadDoc(doc) {
