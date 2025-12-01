@@ -2,7 +2,7 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const { requireAuth, requireRole } = require('../middlewares/auth');
-const { createNotification } = require('../utils/notifications'); // si no usas notificaciones, puedes quitar esta línea
+const { createNotification } = require('../utils/notifications');
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -17,11 +17,13 @@ function generateToken() {
 
 async function addTicketLog({ ticketId, action, byUserId, details }) {
   try {
+    // Tu modelo real es AuditLog + AuditAction
+    // action debe ser uno de: 'CREATE_TICKET', 'ADD_REPLY', 'REASSIGN', 'COMPLETE', 'UPDATE_TICKET', etc.
     return await prisma.auditLog.create({
       data: {
         ticketId,
         actorId: byUserId ?? null,
-        action, // debe coincidir con enum AuditAction
+        action,
         details: details ? String(details) : null,
       }
     });
@@ -34,11 +36,16 @@ async function addTicketLog({ ticketId, action, byUserId, details }) {
 
 // Tipos de ticket (para select del formulario)
 router.get('/ticket-types', requireAuth, async (_req, res) => {
-  const tipos = await prisma.ticketType.findMany({
-    select: { id: true, nombre: true, departmentId: true },
-    orderBy: { nombre: 'asc' }
-  });
-  res.json({ ok: true, tipos });
+  try {
+    const tipos = await prisma.ticketType.findMany({
+      select: { id: true, nombre: true, departmentId: true },
+      orderBy: { nombre: 'asc' }
+    });
+    res.json({ ok: true, tipos });
+  } catch (err) {
+    console.error('GET /ticket-types error:', err);
+    res.status(500).json({ ok: false, error: 'Error obteniendo tipos de ticket' });
+  }
 });
 
 // Crear ticket (estudiante)
@@ -49,16 +56,20 @@ router.post('/tickets', requireAuth, requireRole('estudiante'), async (req, res)
       asunto,
       descripcion,
       cru,
-      categoriaConsulta,
-      categoriaQueja
+      categoriaConsulta,   // nombre preferido
+      categoriaQueja       // compatibilidad
     } = req.body || {};
 
     if (!tipoId || !asunto || !descripcion) {
       return res.status(400).json({ ok: false, error: 'Faltan campos' });
     }
 
-    const tipo = await prisma.ticketType.findUnique({ where: { id: Number(tipoId) } });
-    if (!tipo) return res.status(400).json({ ok: false, error: 'Tipo inválido' });
+    const tipo = await prisma.ticketType.findUnique({
+      where: { id: Number(tipoId) }
+    });
+    if (!tipo) {
+      return res.status(400).json({ ok: false, error: 'Tipo inválido' });
+    }
 
     const token = generateToken();
     const category = categoriaConsulta ?? categoriaQueja ?? null;
@@ -87,24 +98,30 @@ router.post('/tickets', requireAuth, requireRole('estudiante'), async (req, res)
       details: 'Ticket creado por estudiante'
     });
 
-    if (createNotification) {
-      await createNotification(prisma, {
-        type: 'TICKET_CREATED',
-        message: `Ticket ${ticket.token} creado`,
-        ticketId: ticket.id,
-        actorId: req.sessionUser.id,
-        departmentId: ticket.departamentoActualId
-      });
-    }
+    // Notificación cuando el estudiante crea un ticket
+    await createNotification(prisma, {
+      type: 'TICKET_CREATED',
+      message: `Ticket ${ticket.token} creado`,
+      ticketId: ticket.id,
+      actorId: req.sessionUser.id,
+      departmentId: ticket.departamentoActualId,
+      audience: 'ALL'
+    });
 
-    res.json({ ok: true, ticket: { ...ticket, categoriaConsulta: ticket.categoriaQueja } });
+    res.json({
+      ok: true,
+      ticket: {
+        ...ticket,
+        categoriaConsulta: ticket.categoriaQueja
+      }
+    });
   } catch (err) {
-    console.error('Error creando ticket:', err);
+    console.error('POST /tickets error:', err);
     res.status(500).json({ ok: false, error: 'Error al crear ticket' });
   }
 });
 
-// Crear ticket EN NOMBRE de un estudiante (recepción/admin)
+// Crear ticket por recepción/admin en nombre de un estudiante
 router.post(
   '/tickets/by-reception',
   requireAuth,
@@ -122,7 +139,7 @@ router.post(
       } = req.body || {};
 
       if (!studentId || !tipoId || !asunto || !descripcion) {
-        return res.status(400).json({ ok: false, error: 'Faltan campos' });
+        return res.status(400).json({ ok: false, error: 'Faltan campos obligatorios' });
       }
 
       const estudiante = await prisma.user.findUnique({
@@ -136,7 +153,9 @@ router.post(
       const tipo = await prisma.ticketType.findUnique({
         where: { id: Number(tipoId) }
       });
-      if (!tipo) return res.status(400).json({ ok: false, error: 'Tipo inválido' });
+      if (!tipo) {
+        return res.status(400).json({ ok: false, error: 'Tipo de ticket inválido' });
+      }
 
       const token = generateToken();
       const category = categoriaConsulta ?? categoriaQueja ?? null;
@@ -162,47 +181,62 @@ router.post(
         ticketId: ticket.id,
         action: 'CREATE_TICKET',
         byUserId: req.sessionUser.id,
-        details: 'Ticket creado por recepción/admin'
+        details: `Ticket creado por recepción/admin en nombre del estudiante ${estudiante.cedula}`
       });
 
-      if (createNotification) {
-        await createNotification(prisma, {
-          type: 'TICKET_CREATED',
-          message: `Ticket ${ticket.token} creado por recepción`,
-          ticketId: ticket.id,
-          actorId: req.sessionUser.id,
-          departmentId: ticket.departamentoActualId
-        });
-      }
+      // Notificación cuando recepción o admin crean ticket
+      await createNotification(prisma, {
+        type: 'TICKET_CREATED',
+        message: `Ticket ${ticket.token} creado para ${estudiante.nombre} ${estudiante.apellido}`,
+        ticketId: ticket.id,
+        actorId: req.sessionUser.id,
+        departmentId: ticket.departamentoActualId,
+        audience: 'ALL'
+      });
 
-      res.json({ ok: true, ticket: { ...ticket, categoriaConsulta: ticket.categoriaQueja } });
+      res.json({
+        ok: true,
+        ticket: {
+          ...ticket,
+          categoriaConsulta: ticket.categoriaQueja
+        }
+      });
     } catch (err) {
-      console.error('Error creando ticket by-reception:', err);
-      res.status(500).json({ ok: false, error: 'Error al crear ticket (recepción)' });
+      console.error('POST /tickets/by-reception error:', err);
+      res.status(500).json({ ok: false, error: 'Error al crear ticket desde recepción' });
     }
   }
 );
 
 // Mis tickets (estudiante)
 router.get('/my/tickets', requireAuth, requireRole('estudiante'), async (req, res) => {
-  const rows = await prisma.ticket.findMany({
-    where: { estudianteId: req.sessionUser.id },
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      token: true,
-      asunto: true,
-      estado: true,
-      createdAt: true,
-      cru: true,
-      categoriaQueja: true,
-      tipo: { select: { nombre: true } },
-      departamentoActual: { select: { nombre: true } }
-    }
-  });
+  try {
+    const rows = await prisma.ticket.findMany({
+      where: { estudianteId: req.sessionUser.id },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        token: true,
+        asunto: true,
+        estado: true,
+        createdAt: true,
+        cru: true,
+        categoriaQueja: true,
+        tipo: { select: { nombre: true } },
+        departamentoActual: { select: { nombre: true } }
+      }
+    });
 
-  const tickets = rows.map(t => ({ ...t, categoriaConsulta: t.categoriaQueja }));
-  res.json({ ok: true, tickets });
+    const tickets = rows.map(t => ({
+      ...t,
+      categoriaConsulta: t.categoriaQueja
+    }));
+
+    res.json({ ok: true, tickets });
+  } catch (err) {
+    console.error('GET /my/tickets error:', err);
+    res.status(500).json({ ok: false, error: 'Error listando tickets del estudiante' });
+  }
 });
 
 // Detalle de MI ticket (estudiante)
@@ -211,23 +245,56 @@ router.get('/my/tickets/:id', requireAuth, requireRole('estudiante'), async (req
     const id = Number(req.params.id);
 
     const t = await prisma.ticket.findFirst({
-      where: { id, estudianteId: req.sessionUser.id },
+      where: {
+        id,
+        estudianteId: req.sessionUser.id
+      },
       include: {
         tipo: true,
         departamentoActual: true,
-        estudiante: { select: { id: true, nombre: true, apellido: true, email: true, cedula: true, facultad: true } },
+        estudiante: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            email: true,
+            cedula: true,
+            facultad: true
+          }
+        },
         messages: {
           orderBy: { createdAt: 'asc' },
-          include: { autor: { select: { id: true, nombre: true, apellido: true, rol: true } } }
+          include: {
+            autor: {
+              select: {
+                id: true,
+                nombre: true,
+                apellido: true,
+                rol: true
+              }
+            }
+          }
         },
         auditLogs: {
           orderBy: { createdAt: 'asc' },
-          include: { actor: { select: { id: true, nombre: true, apellido: true, rol: true, email: true } } }
+          include: {
+            actor: {
+              select: {
+                id: true,
+                nombre: true,
+                apellido: true,
+                rol: true,
+                email: true
+              }
+            }
+          }
         }
       }
     });
 
-    if (!t) return res.status(404).json({ ok: false, error: 'No existe o no te pertenece' });
+    if (!t) {
+      return res.status(404).json({ ok: false, error: 'No existe o no te pertenece' });
+    }
 
     res.json({ ok: true, ticket: t });
   } catch (err) {
@@ -236,46 +303,58 @@ router.get('/my/tickets/:id', requireAuth, requireRole('estudiante'), async (req
   }
 });
 
-// Responder (texto enriquecido simple HTML)
-router.post('/tickets/:id/messages', requireAuth, requireRole('recepcion', 'departamento', 'admin'), async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    const { contenidoHtml } = req.body || {};
-    if (!contenidoHtml) return res.status(400).json({ ok: false, error: 'Falta contenidoHtml' });
+// Responder (texto enriquecido simple HTML) para recepción/departamento/admin
+router.post(
+  '/tickets/:id/messages',
+  requireAuth,
+  requireRole('recepcion', 'departamento', 'admin'),
+  async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { contenidoHtml } = req.body || {};
 
-    const t = await prisma.ticket.findUnique({ where: { id } });
-    if (!t) return res.status(404).json({ ok: false, error: 'Ticket no existe' });
+      if (!contenidoHtml) {
+        return res.status(400).json({ ok: false, error: 'Falta contenidoHtml' });
+      }
 
-    await prisma.ticketMessage.create({
-      data: {
+      const t = await prisma.ticket.findUnique({
+        where: { id }
+      });
+      if (!t) {
+        return res.status(404).json({ ok: false, error: 'Ticket no existe' });
+      }
+
+      await prisma.ticketMessage.create({
+        data: {
+          ticketId: id,
+          autorUserId: req.sessionUser.id,
+          contenidoHtml: String(contenidoHtml)
+        }
+      });
+
+      await addTicketLog({
         ticketId: id,
-        autorUserId: req.sessionUser.id,
-        contenidoHtml: String(contenidoHtml),
-      },
-    });
+        action: 'ADD_REPLY',
+        byUserId: req.sessionUser.id,
+        details: 'Respuesta agregada'
+      });
 
-    await addTicketLog({
-      ticketId: id,
-      action: 'ADD_REPLY',
-      byUserId: req.sessionUser.id,
-      details: 'Respuesta agregada',
-    });
-
-    if (createNotification) {
+      // Notificación de respuesta
       await createNotification(prisma, {
         type: 'TICKET_REPLIED',
         message: `Nueva respuesta en ${t.token}`,
         ticketId: t.id,
         actorId: req.sessionUser.id,
-        departmentId: t.departamentoActualId
+        departmentId: t.departamentoActualId,
+        audience: 'ALL'
       });
-    }
 
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('POST /tickets/:id/messages error:', err);
-    res.status(500).json({ ok: false, error: 'Error respondiendo' });
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('POST /tickets/:id/messages error:', err);
+      res.status(500).json({ ok: false, error: 'Error respondiendo' });
+    }
   }
-});
+);
 
 module.exports = router;

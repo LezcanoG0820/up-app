@@ -39,11 +39,11 @@ export const authApi = {
 }
 
 export const ticketsApi = {
-  getTypes:    () => request('/api/ticket-types'),
-  create:      (payload) => request('/api/tickets', { method: 'POST', body: payload }),
-  myList:      () => request('/api/my/tickets'),
-  myTickets:   () => request('/api/my/tickets'),
-  myTicketById:(id) => request(`/api/my/tickets/${id}`),
+  getTypes:     () => request('/api/ticket-types'),
+  create:       (payload) => request('/api/tickets', { method: 'POST', body: payload }),
+  myList:       () => request('/api/my/tickets'),
+  myTickets:    () => request('/api/my/tickets'),
+  myTicketById: (id) => request(`/api/my/tickets/${id}`)
 }
 
 export const manageApi = {
@@ -60,22 +60,22 @@ export const manageApi = {
 }
 
 // ---- Documentos ----
-async function requestForm(path, formData, method = 'POST') {
+async function requestForm (path, formData, method = 'POST') {
   const res = await fetch(`${BASE}${path}`, {
     method,
     body: formData,
     credentials: 'include'
-  });
+  })
   if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
+    let msg = `HTTP ${res.status}`
     try {
-      const j = await res.json();
-      if (j?.error) msg = j.error;
+      const j = await res.json()
+      if (j?.error) msg = j.error
     } catch {}
-    throw new Error(msg);
+    throw new Error(msg)
   }
-  const ct = res.headers.get('content-type') || '';
-  return ct.includes('application/json') ? res.json() : res.text();
+  const ct = res.headers.get('content-type') || ''
+  return ct.includes('application/json') ? res.json() : res.text()
 }
 
 export const documentsApi = {
@@ -90,15 +90,22 @@ export const documentsApi = {
   view: (id) => request(`/api/documents/${id}/view`, { method: 'PATCH' }),
   downloadUrl: (id) => `/api/documents/${id}/download`,
   rename: (id, payload) => request(`/api/documents/${id}`, { method: 'PATCH', body: payload }),
-  remove: (id) => request(`/api/documents/${id}`, { method: 'DELETE' }),
+  remove: (id) => request(`/api/documents/${id}`, { method: 'DELETE' })
 }
 
-// Recepción (estudiantes + tickets en su nombre) ====
+// Recepción (estudiantes + tickets en su nombre)
 export const studentsApi = {
   search: (q) => request(`/api/students/search${qs({ q })}`),
-  create: (payload) => request('/api/students', { method: 'POST', body: payload }),
+  create: (payload) => request('/api/students', { method: 'POST', body: payload })
 }
 
 export const receptionTicketsApi = {
-  createForStudent: (payload) => request('/api/tickets/by-reception', { method: 'POST', body: payload }),
+  createForStudent: (payload) => request('/api/tickets/by-reception', { method: 'POST', body: payload })
+}
+
+// Notificaciones
+export const notifApi = {
+  list:       () => request('/api/notifications'),
+  markRead:   (id) => request(`/api/notifications/${id}/read`, { method: 'POST' }),
+  markAllRead: () => request('/api/notifications/read-all', { method: 'POST' })
 }

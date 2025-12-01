@@ -12,11 +12,15 @@
           <RouterLink to="/my/tickets">Mis tickets</RouterLink>
         </template>
 
-        <!-- Recepción / Admin -->
+        <!-- Recepción -->
         <template v-if="user?.rol === 'recepcion' || user?.rol === 'admin'">
           <RouterLink to="/inbox/reception">Bandeja Recepción</RouterLink>
-          <!-- acceso directo a creación por recepción -->
           <RouterLink to="/reception/new-ticket">Nuevo ticket (recepción)</RouterLink>
+        </template>
+
+        <!-- Departamento -->
+        <template v-if="user?.rol === 'departamento' || user?.rol === 'admin'">
+          <RouterLink to="/inbox/department">Bandeja Departamento</RouterLink>
         </template>
 
         <!-- Documentos (administrativo/departamento/admin) -->
@@ -26,6 +30,9 @@
       </nav>
 
       <div style="display:flex; align-items:center; gap:.5rem;">
+        <!-- Campana de notificaciones (no para estudiantes) -->
+        <NotificationsBell v-if="user && user.rol !== 'estudiante'" />
+
         <!-- Selector Claro/Oscuro -->
         <button
           class="btn-secondary"
@@ -57,7 +64,7 @@
       style="margin-top:1rem;"
     >
       <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem;">
-        <h2 style="margin:0;">🧪 Demo de Tema y Componentes</h2>
+        <h2 style="margin:0;">Demo de Tema y Componentes</h2>
         <div style="display:flex; gap:.5rem; align-items:center;">
           <code style="font-size:.9rem;">Tema: {{ themeName }}</code>
           <a class="btn-secondary" :href="baseUrl">Cerrar demo</a>
@@ -66,7 +73,7 @@
 
       <p class="text-muted" style="margin:.5rem 0 1rem;">
         Esta demo existe solo para validar el modo claro/oscuro y estilos globales (botones, inputs, tablas, cards).
-        Para verla, entra con un usuario <strong>admin o recepción</strong> y usa
+        Para verla, entra con un usuario admin o recepción y usa
         <code>?demo=1</code> en la URL.
       </p>
 
@@ -141,7 +148,6 @@
         </fieldset>
       </div>
     </section>
-    <!-- /demo -->
 
     <main style="padding-top:1rem;">
       <RouterView />
@@ -155,6 +161,7 @@ import { session } from './store/session'
 import { authApi } from './api'
 import { useRouter } from 'vue-router'
 import { themeName, toggleTheme } from './utils/theme'
+import NotificationsBell from './components/NotificationsBell.vue'
 
 const router = useRouter()
 const user = computed(() => session.user)
@@ -167,7 +174,7 @@ async function logout () {
   router.push('/login')
 }
 
-// Mostrar demo solo con ?demo=1 (y no para estudiantes)
+// mostrar demo solo con ?demo=1
 const showThemeDemo = computed(() => {
   try {
     const sp = new URLSearchParams(window.location.search)
@@ -177,7 +184,6 @@ const showThemeDemo = computed(() => {
   }
 })
 const baseUrl = computed(() => {
-  // URL sin parámetros para el link “Cerrar demo”
   return window.location.origin + window.location.pathname
 })
 </script>
