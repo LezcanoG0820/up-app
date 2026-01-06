@@ -17,12 +17,12 @@ import AdminDocumentsView from './views/AdminDocumentsView.vue'
 import DeptDocumentsView from './views/DeptDocumentsView.vue'
 import DocumentsView from './views/DocumentsView.vue'
 
-// ⬇️ NUEVO: vista para crear tickets desde recepción
+//vista para crear tickets desde recepción
 import ReceptionNewTicketView from './views/ReceptionNewTicketView.vue'
 
 import { session, loadSession } from './store/session'
 
-// ⬇️ gestor de tema (claro/oscuro)
+//gestor de tema (claro/oscuro)
 import { applySavedTheme } from './utils/theme'
 
 // Definimos rutas con metadata de rol
@@ -39,7 +39,7 @@ const routes = [
 
   // Recepción
   { path: '/inbox/reception', name: 'inbox-reception', component: ReceptionInboxView, meta: { requiresAuth: true, roles: ['recepcion','admin'] } },
-  // ⬇️ NUEVO: crear ticket en nombre del estudiante
+  //crear ticket en nombre del estudiante
   { path: '/reception/new-ticket', name: 'reception-new-ticket', component: ReceptionNewTicketView, meta: { requiresAuth: true, roles: ['recepcion','admin'] } },
 
   // Departamento
