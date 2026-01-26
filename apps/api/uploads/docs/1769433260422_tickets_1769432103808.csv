@@ -1,0 +1,19 @@
+Token,Asunto,Estado,Fecha,CRU,CategoriaConsulta,Tipo,Departamento,EstudianteNombre,EstudianteApellido,Cedula,Email,Facultad
+SIU-2025-651892,Solicitud de créditos / carga académica,completado,2025-12-11T14:58:55.774Z,SM,khgc,Pruebas,Administración,Amanda,Roth,8-987-7899,aroth@siu.local,Facultad de Medicina
+SIU-2025-350995,Error en pago / matrícula,completado,2025-12-05T15:03:12.056Z,CRU San Miguelito,..,Pagos,Administración,Satone,Kurusu,8-1234-567,skurusu@test.local,Facultad de Ingeniería
+SIU-2025-033690,Error en pago / matrícula,abierto,2025-12-01T15:24:19.819Z,,,Pruebas,Contabilidad,Satone,Kurusu,8-1234-567,skurusu@test.local,Facultad de Ingeniería
+SIU-2025-499423,Constancia de estudios / documentos,abierto,2025-12-01T10:03:24.235Z,x,x,Pruebas,Administración,Satone,Kurusu,8-1234-567,skurusu@test.local,Facultad de Ingeniería
+SIU-2025-326421,Pagos,abierto,2025-12-01T04:37:29.626Z,CRU/ EXTENCION AZUERO,IDK,Resultados,Administración,Satone,Kurusu,8-1234-567,skurusu@test.local,Facultad de Ingeniería
+SIU-2025-108381,Pagos,completado,2025-11-30T23:30:41.292Z,CRU de San Miguelito,testing,Errores de pago,Contabilidad,Satone,Kurusu,8-1234-567,skurusu@test.local,Facultad de Ingeniería
+SIU-2025-242726,Resultados,abierto,2025-11-30T22:48:38.924Z,CRU Azuero,,Pruebas,Administración,Satone,Kurusu,8-1234-567,skurusu@test.local,Facultad de Ingeniería
+SIU-2025-813888,Prueba con el error de pago.,abierto,2025-11-26T14:57:03.559Z,Centro regional de San Miguelito,???,Pagos,Contabilidad,Guillermo,Lezcano,4-813-1563,guillermo.lezcano@utp.ac.pa,Facultad de Ingeniería
+SIU-2025-075300,error de pago,abierto,2025-11-07T15:33:55.246Z,,,Errores de pago,Contabilidad,Guillermo,Lezcano,4-813-1563,guillermo.lezcano@utp.ac.pa,Facultad de Ingeniería
+SIU-2025-742854,..,abierto,2025-11-07T15:26:44.742Z,,,Pruebas,Administración,yanaris,vargas,9-9099-9999,yvargas@prueba.local,Facultad de Ingeniería
+SIU-2025-235876,..,abierto,2025-11-07T15:26:09.076Z,,,Pagos,Contabilidad,Guillermo,Lezcano,4-813-1563,guillermo.lezcano@utp.ac.pa,Facultad de Ingeniería
+SIU-2025-678387,quiero saber mis resultados en las pruebas,abierto,2025-11-07T15:21:35.225Z,,,Pruebas,Administración,Grace,Perez,1-1111-1111,gperez@prueba.local,Facultad de Economía
+SIU-2025-614158,Como pago mi matricula?,abierto,2025-11-07T15:14:45.743Z,,,Pagos,Contabilidad,Nazareth,Frias,5-5555-5555,nfriaz@prueba.local,Facultad de Comunicación Social
+SIU-2025-582867,"""Despues de recibir los resultados, cuando puedo ir a la facultad a matricular?""",completado,2025-11-07T14:45:38.503Z,C.R.U. de Azuero,Matrícula,Resultados,Administración,Nazareth,Frias,5-5555-5555,nfriaz@prueba.local,Facultad de Comunicación Social
+SIU-2025-261942,Prueba para presentacion 1,abierto,2025-10-14T13:56:53.731Z,C.R.U. de Azuero,Tiempos de respuesta,Pruebas,Administración,Axel,Blaze,4-1235-6548,axel.prueba@gmail.com,Facultad de Enfermería
+SIU-2025-401883,Quiero saber si pueden ayudarme a contactar a mi facultad para ayuda en la matricula,abierto,2025-10-06T16:15:02.565Z,C.R.U. Panamá Este,Comunicación de facultad,Pruebas,Administración,Bleisen,Jaen,4-817-226,bleisen.jaen1@utp.ac.pa,"Facultad de Ciencias Naturales, Exactas y Tecnología"
+SIU-2025-089679,prueba,abierto,2025-10-06T15:55:06.195Z,C.R.U. de San Miguelito,Pagos,Errores de pago,Recepción,Guillermo,Lezcano,4-813-1563,guillermo.lezcano@utp.ac.pa,Facultad de Ingeniería
+SIU-2025-303633,Cuanto demoran en darme mis resultados?,abierto,2025-10-06T15:13:08.369Z,C.R.U. de San Miguelito,Tiempos de respuesta,Pruebas,Administración,Guillermo,Lezcano,4-813-1563,guillermo.lezcano@utp.ac.pa,Facultad de Ingeniería
