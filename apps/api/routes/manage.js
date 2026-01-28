@@ -2,7 +2,7 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const { requireAuth, requireRole } = require('../middlewares/auth');
-const { createNotification } = require('../utils/notifications'); // si no tienes notificaciones, puedes quitar esta línea
+const { createNotification } = require('../utils/notifications');
 const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
@@ -17,7 +17,7 @@ async function addTicketLog({ ticketId, action, byUserId, details }) {
       data: {
         ticketId,
         actorId: byUserId ?? null,
-        action, // 'CREATE_TICKET' | 'ADD_REPLY' | 'REASSIGN' | 'COMPLETE' | 'UPDATE_TICKET' | ...
+        action,
         details: details ? String(details) : null,
       }
     });
@@ -91,7 +91,7 @@ router.get('/facultades', async (_req, res) => res.json({ ok: true, facultades: 
 router.get(
   '/departments',
   requireAuth,
-  requireRole('recepcion', 'departamento', 'admin'),
+  requireRole('recepcion', 'departamento', 'maestro'),
   async (_req, res) => {
     try {
       const list = await prisma.department.findMany({
@@ -107,14 +107,14 @@ router.get(
 );
 
 /* ========================
-   Estudiantes (Recepción/Admin)
+   Estudiantes (Recepción/Maestro)
    ======================== */
 
 // Buscar estudiantes por cédula, nombre, apellido o email
 router.get(
   '/students/search',
   requireAuth,
-  requireRole('recepcion', 'admin'),
+  requireRole('recepcion', 'maestro'),
   async (req, res) => {
     try {
       const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
@@ -151,11 +151,11 @@ router.get(
   }
 );
 
-// Crear estudiante nuevo desde recepción/admin
+// Crear estudiante nuevo desde recepción/maestro
 router.post(
   '/students',
   requireAuth,
-  requireRole('recepcion', 'admin'),
+  requireRole('recepcion', 'maestro'),
   async (req, res) => {
     try {
       const { nombre, apellido, cedula, email, facultad } = req.body || {};
@@ -178,7 +178,7 @@ router.post(
         return res.status(400).json({ ok: false, error: 'Ya existe un estudiante con esa cédula o email' });
       }
 
-      const tempPassword = 'Temporal#2025'; // puedes cambiarlo luego
+      const tempPassword = 'Temporal#2025';
       const passwordHash = await hashOnce(tempPassword);
 
       const student = await prisma.user.create({
@@ -213,9 +213,9 @@ router.post(
 );
 
 /* ========================
-   Bandeja Recepción / Admin
+   Bandeja Recepción / Maestro
    ======================== */
-router.get('/admin/tickets', requireAuth, requireRole('recepcion', 'admin'), async (req, res) => {
+router.get('/admin/tickets', requireAuth, requireRole('recepcion', 'maestro'), async (req, res) => {
   try {
     const { q, estado, date_from, date_to } = req.query;
 
@@ -284,9 +284,9 @@ router.get('/admin/tickets', requireAuth, requireRole('recepcion', 'admin'), asy
 });
 
 /* ========================
-   Export CSV (admin/recepción)
+   Export CSV (maestro/recepción)
    ======================== */
-router.get('/admin/tickets/export', requireAuth, requireRole('recepcion', 'admin'), async (req, res) => {
+router.get('/admin/tickets/export', requireAuth, requireRole('recepcion', 'maestro'), async (req, res) => {
   try {
     const { q, estado, date_from, date_to, nombre, apellido, cedula, facultad } = req.query;
 
@@ -302,24 +302,11 @@ router.get('/admin/tickets/export', requireAuth, requireRole('recepcion', 'admin
             },
           }
         : {}),
-      ...(qRaw
-        ? {
+      ...(qRaw ? {
             OR: [
-              { token:  { equals: qRaw } },
-              { token:  { contains: qRaw } },
+              { token: { contains: qRaw } },
               { asunto: { contains: qRaw } },
-              {
-                estudiante: {
-                  OR: [
-                    { nombre:   { contains: qRaw } },
-                    { apellido: { contains: qRaw } },
-                    { email:    { contains: qRaw } },
-                    { cedula:   { equals: qRaw } },
-                    { cedula:   { contains: qRaw } },
-                    { facultad: { contains: qRaw } },
-                  ],
-                },
-              },
+              { estudiante: { cedula: { contains: qRaw } } },
             ],
           }
         : {}),
@@ -403,7 +390,7 @@ function safeCsv(v) {
 /* ========================
    Bandeja Departamento (filtro por q = token o cédula)
    ======================== */
-router.get('/dept/tickets', requireAuth, requireRole('departamento', 'admin'), async (req, res) => {
+router.get('/dept/tickets', requireAuth, requireRole('departamento', 'maestro'), async (req, res) => {
   try {
     const deptId = req.sessionUser?.departamentoId;
     if (!deptId) {
@@ -412,65 +399,62 @@ router.get('/dept/tickets', requireAuth, requireRole('departamento', 'admin'), a
 
     const { q } = req.query;
     const qRaw   = typeof q === 'string' ? q.trim() : '';
-    const qUpper = qRaw.toUpperCase();
 
     const where = {
       departamentoActualId: deptId,
       ...(qRaw ? {
-        OR: [
-          { token: { equals: qRaw } },
-          { token: { contains: qRaw } },
-          { token: { contains: qUpper } },
-          { estudiante: { cedula: { equals: qRaw } } },
-          { estudiante: { cedula: { contains: qRaw } } },
-        ]
-      } : {})
+            OR: [
+              { token: { contains: qRaw } },
+              { estudiante: { cedula: { contains: qRaw } } }
+            ]
+          }
+        : {}),
     };
 
     const rows = await prisma.ticket.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       select: {
-        id: true, token: true, asunto: true, estado: true, createdAt: true,
-        cru: true, categoriaQueja: true,
+        id: true,
+        token: true,
+        asunto: true,
+        estado: true,
+        createdAt: true,
+        cru: true,
+        categoriaQueja: true,
         tipo: { select: { nombre: true } },
-        estudiante: { select: { nombre: true, apellido: true, email: true, cedula: true, facultad: true } }
-      }
+        departamentoActual: { select: { nombre: true, slug: true } },
+        estudiante: {
+          select: { nombre: true, apellido: true, email: true, cedula: true, facultad: true },
+        },
+      },
     });
 
-    const tickets = rows.map(t => ({ ...t, categoriaConsulta: t.categoriaQueja }));
+    const tickets = rows.map((t) => ({ ...t, categoriaConsulta: t.categoriaQueja }));
     res.json({ ok: true, tickets });
   } catch (err) {
     console.error('GET /dept/tickets error:', err);
-    res.status(500).json({ ok: false, error: 'Error listando tickets' });
+    res.status(500).json({ ok: false, error: 'Error listando tickets del departamento' });
   }
 });
 
 /* ========================
-   Detalle Ticket (con historial)
+   Detalle de ticket (recepción/departamento/maestro)
    ======================== */
-router.get('/tickets/:id', requireAuth, requireRole('recepcion', 'departamento', 'admin'), async (req, res) => {
+router.get('/tickets/:id', requireAuth, requireRole('recepcion', 'departamento', 'maestro'), async (req, res) => {
   try {
     const id = Number(req.params.id);
+
     const t = await prisma.ticket.findUnique({
       where: { id },
       include: {
+        estudiante: true,
         tipo: true,
-        departamentoActual: true,
-        estudiante: {
-          select: { id: true, nombre: true, apellido: true, email: true, rol: true, cedula: true, facultad: true },
-        },
-        messages: {
-          orderBy: { createdAt: 'asc' },
-          include: { autor: { select: { id: true, nombre: true, apellido: true, rol: true } } },
-        },
-        auditLogs: {
-          orderBy: { createdAt: 'asc' },
-          include: { actor: { select: { id: true, nombre: true, apellido: true, email: true, rol: true } } },
-        },
-      },
+        departamentoActual: true
+      }
     });
-    if (!t) return res.status(404).json({ ok: false, error: 'No existe' });
+
+    if (!t) return res.status(404).json({ ok: false, error: 'Ticket no encontrado' });
 
     res.json({ ok: true, ticket: { ...t, categoriaConsulta: t.categoriaQueja } });
   } catch (err) {
@@ -484,7 +468,7 @@ router.get('/tickets/:id', requireAuth, requireRole('recepcion', 'departamento',
    ======================== */
 
 // Responder (texto enriquecido simple HTML)
-router.post('/tickets/:id/messages', requireAuth, requireRole('recepcion', 'departamento', 'admin'), async (req, res) => {
+router.post('/tickets/:id/messages', requireAuth, requireRole('recepcion', 'departamento', 'maestro'), async (req, res) => {
   try {
     const id = Number(req.params.id);
     const { contenidoHtml } = req.body || {};
@@ -526,7 +510,7 @@ router.post('/tickets/:id/messages', requireAuth, requireRole('recepcion', 'depa
 });
 
 // Reasignar
-router.post('/tickets/:id/reassign', requireAuth, requireRole('recepcion', 'admin'), async (req, res) => {
+router.post('/tickets/:id/reassign', requireAuth, requireRole('recepcion', 'maestro'), async (req, res) => {
   try {
     const id = Number(req.params.id);
     const { departmentId, departmentSlug } = req.body || {};
@@ -569,7 +553,7 @@ router.post('/tickets/:id/reassign', requireAuth, requireRole('recepcion', 'admi
 });
 
 // Completar
-router.post('/tickets/:id/complete', requireAuth, requireRole('recepcion', 'departamento', 'admin'), async (req, res) => {
+router.post('/tickets/:id/complete', requireAuth, requireRole('recepcion', 'departamento', 'maestro'), async (req, res) => {
   try {
     const id = Number(req.params.id);
 

@@ -88,7 +88,7 @@ function docToJson(doc) {
 router.get(
   '/documents',
   requireAuth,
-  requireRole('recepcion', 'departamento', 'admin'),
+  requireRole('recepcion', 'departamento', 'maestro'),
   async (req, res) => {
     try {
       const where = buildWhereForList(req.sessionUser, req.query);
@@ -120,7 +120,7 @@ router.get(
 router.post(
   '/documents/upload',
   requireAuth,
-  requireRole('recepcion', 'departamento', 'admin'),
+  requireRole('recepcion', 'departamento', 'maestro'),
   upload.single('file'),
   async (req, res) => {
     try {
@@ -134,7 +134,7 @@ router.post(
       // Departamento asociado:
       // - si viene como parámetro, se usa ese
       // - si el usuario es de "departamento", se usa su propio depto
-      // - admin/recepción pueden dejarlo vacío (null) si así lo desean
+      // - maestro/recepción pueden dejarlo vacío (null) si así lo desean
       let deptId = null;
       if (departmentId) {
         deptId = Number(departmentId);
@@ -175,7 +175,7 @@ router.post(
 router.patch(
   '/documents/:id/view',
   requireAuth,
-  requireRole('recepcion', 'departamento', 'admin'),
+  requireRole('recepcion', 'departamento', 'maestro'),
   async (req, res) => {
     try {
       const id = Number(req.params.id);
@@ -204,7 +204,7 @@ router.patch(
 router.get(
   '/documents/:id/download',
   requireAuth,
-  requireRole('recepcion', 'departamento', 'admin'),
+  requireRole('recepcion', 'departamento', 'maestro'),
   async (req, res) => {
     try {
       const id = Number(req.params.id);
@@ -235,7 +235,7 @@ router.get(
 router.patch(
   '/documents/:id',
   requireAuth,
-  requireRole('recepcion', 'departamento', 'admin'),
+  requireRole('recepcion', 'departamento', 'maestro'),
   async (req, res) => {
     try {
       const id = Number(req.params.id);
@@ -272,7 +272,7 @@ router.patch(
 router.delete(
   '/documents/:id',
   requireAuth,
-  requireRole('recepcion', 'departamento', 'admin'),
+  requireRole('recepcion', 'departamento', 'maestro'),
   async (req, res) => {
     try {
       const id = Number(req.params.id);

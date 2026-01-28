@@ -38,26 +38,26 @@ const routes = [
   { path: '/my/tickets', name: 'my-tickets', component: MyTicketsView, meta: { requiresAuth: true, roles: ['estudiante'] } },
 
   // Recepción
-  { path: '/inbox/reception', name: 'inbox-reception', component: ReceptionInboxView, meta: { requiresAuth: true, roles: ['recepcion','admin'] } },
+  { path: '/inbox/reception', name: 'inbox-reception', component: ReceptionInboxView, meta: { requiresAuth: true, roles: ['recepcion','maestro'] } },
   //crear ticket en nombre del estudiante
-  { path: '/reception/new-ticket', name: 'reception-new-ticket', component: ReceptionNewTicketView, meta: { requiresAuth: true, roles: ['recepcion','admin'] } },
+  { path: '/reception/new-ticket', name: 'reception-new-ticket', component: ReceptionNewTicketView, meta: { requiresAuth: true, roles: ['recepcion','maestro'] } },
 
   // Departamento
-  { path: '/inbox/department', name: 'inbox-department', component: DeptInboxView, meta: { requiresAuth: true, roles: ['departamento','admin'] } },
+  { path: '/inbox/department', name: 'inbox-department', component: DeptInboxView, meta: { requiresAuth: true, roles: ['departamento','maestro'] } },
 
-  // Detalle de ticket (lo ven recepcion, depto, admin y estudiante dueño vía endpoint propio)
+  // Detalle de ticket (lo ven recepcion, depto, maestro y estudiante dueño vía endpoint propio)
   { path: '/tickets/:id', name: 'ticket-detail', component: TicketDetailView,
-    meta: { requiresAuth: true, roles: ['estudiante','recepcion','departamento','admin'] } },
+    meta: { requiresAuth: true, roles: ['estudiante','recepcion','departamento','maestro'] } },
 
   // Vistas de gestión de documentos
-  { path: '/docs/admin', name: 'docs-admin', component: AdminDocumentsView, meta: { requiresAuth: true, roles: ['recepcion','admin'] } },
-  { path: '/docs/department', name: 'docs-dept', component: DeptDocumentsView, meta: { requiresAuth: true, roles: ['departamento','admin'] } },
+  { path: '/docs/admin', name: 'docs-admin', component: AdminDocumentsView, meta: { requiresAuth: true, roles: ['recepcion','maestro'] } },
+  { path: '/docs/department', name: 'docs-dept', component: DeptDocumentsView, meta: { requiresAuth: true, roles: ['departamento','maestro'] } },
 
   {
     path: '/documents',
     name: 'documents',
     component: DocumentsView,
-    meta: { requiresAuth: true, roles: ['recepcion', 'departamento', 'admin'] } 
+    meta: { requiresAuth: true, roles: ['recepcion', 'departamento', 'maestro'] } 
   },
   
   // 404 simple

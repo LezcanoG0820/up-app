@@ -7,15 +7,19 @@ const { createNotification } = require('../utils/notifications')
 const prisma = new PrismaClient()
 const router = express.Router()
 
-/* ============================
+/* ========================
    Helpers
-   ============================ */
+   ======================== */
 
 function generateToken () {
-  const now = new Date()
-  const y = now.getFullYear()
-  const seq = Math.floor(Math.random() * 1_000_000)
-  return `SIU-${y}-${String(seq).padStart(6, '0')}`
+  const prefix = 'SIU'
+  const year = new Date().getFullYear()
+  const random = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0')
+  return `${prefix}-${year}-${random}`
+}
+
+function mapTicketCategory (t) {
+  return { ...t, categoriaConsulta: t.categoriaQueja }
 }
 
 async function addTicketLog ({ ticketId, action, byUserId, details }) {
@@ -23,122 +27,89 @@ async function addTicketLog ({ ticketId, action, byUserId, details }) {
     return await prisma.auditLog.create({
       data: {
         ticketId,
-        actorId: byUserId,
+        actorId: byUserId ?? null,
         action,
         details: details ? String(details) : null
       }
     })
-  } catch (err) {
-    console.error('addTicketLog error:', err)
+  } catch (e) {
+    console.error('addTicketLog error:', e)
   }
 }
 
-function mapTicketCategory (ticket) {
-  if (!ticket) return ticket
-  return {
-    ...ticket,
-    // Para mantener la compatibilidad con el frontend,
-    // exponemos categoriaConsulta a partir de categoriaQueja
-    categoriaConsulta: ticket.categoriaQueja
-  }
-}
+/* ========================
+   Crear ticket (estudiante)
+   ======================== */
 
-/* ============================
-   Endpoints
-   ============================ */
-
-// ---- Tipos de ticket (flujo legacy estudiante) ----
-router.get('/ticket-types', requireAuth, async (_req, res) => {
+router.post('/tickets', requireAuth, requireRole('estudiante'), async (req, res) => {
   try {
-    const tipos = await prisma.ticketType.findMany({
-      select: { id: true, nombre: true, departmentId: true },
-      orderBy: { nombre: 'asc' }
+    const { tipoId, asunto, descripcion, cru, categoriaConsulta, categoriaQueja } = req.body || {}
+
+    if (!tipoId || !asunto || !descripcion) {
+      return res.status(400).json({ ok: false, error: 'Datos incompletos' })
+    }
+
+    const tipo = await prisma.ticketType.findUnique({
+      where: { id: Number(tipoId) }
     })
-    res.json({ ok: true, tipos })
+
+    if (!tipo) {
+      return res.status(400).json({ ok: false, error: 'Tipo de ticket inválido' })
+    }
+
+    const token = generateToken()
+    const category = categoriaConsulta ?? categoriaQueja ?? null
+
+    const ticket = await prisma.ticket.create({
+      data: {
+        token,
+        estudianteId: req.sessionUser.id,
+        departamentoActualId: tipo.departmentId,
+        tipoId: tipo.id,
+        asunto: String(asunto),
+        descripcion: String(descripcion),
+        cru: cru ?? null,
+        categoriaQueja: category
+      }
+    })
+
+    await addTicketLog({
+      ticketId: ticket.id,
+      action: 'CREATE_TICKET',
+      byUserId: req.sessionUser.id,
+      details: 'Ticket creado por estudiante'
+    })
+
+    await createNotification(prisma, {
+      type: 'TICKET_CREATED',
+      message: `Ticket ${ticket.token} creado`,
+      ticketId: ticket.id,
+      actorId: req.sessionUser.id,
+      departmentId: ticket.departamentoActualId,
+      audience: 'ALL'
+    })
+
+    res.json({ ok: true, ticket: mapTicketCategory(ticket) })
   } catch (err) {
-    console.error('GET /ticket-types error:', err)
-    res.status(500).json({ ok: false, error: 'Error obteniendo tipos de ticket' })
+    console.error('POST /tickets error:', err)
+    res.status(500).json({ ok: false, error: 'Error al crear ticket' })
   }
 })
 
-// ---- Crear ticket (estudiante, legacy con tipoId) ----
-router.post(
-  '/tickets',
-  requireAuth,
-  requireRole('estudiante'),
-  async (req, res) => {
-    try {
-      const {
-        tipoId,
-        asunto,
-        descripcion,
-        cru,
-        categoriaConsulta,
-        categoriaQueja
-      } = req.body || {}
+/* ========================
+   Crear ticket por recepción/maestro
+   ======================== */
 
-      if (!tipoId || !asunto || !descripcion) {
-        return res.status(400).json({ ok: false, error: 'Datos incompletos' })
-      }
-
-      const tipo = await prisma.ticketType.findUnique({
-        where: { id: Number(tipoId) }
-      })
-      if (!tipo) {
-        return res.status(400).json({ ok: false, error: 'Tipo de ticket inválido' })
-      }
-
-      const token = generateToken()
-      const category = categoriaConsulta ?? categoriaQueja ?? null
-
-      const ticket = await prisma.ticket.create({
-        data: {
-          token,
-          estudianteId: req.sessionUser.id,
-          departamentoActualId: tipo.departmentId,
-          tipoId: tipo.id,
-          asunto: String(asunto),
-          descripcion: String(descripcion),
-          cru: cru ?? null,
-          categoriaQueja: category
-        }
-      })
-
-      await addTicketLog({
-        ticketId: ticket.id,
-        action: 'CREATE_TICKET',
-        byUserId: req.sessionUser.id,
-        details: 'Ticket creado por estudiante'
-      })
-
-      await createNotification(prisma, {
-        type: 'TICKET_CREATED',
-        message: `Ticket ${ticket.token} creado`,
-        ticketId: ticket.id,
-        actorId: req.sessionUser.id,
-        departmentId: ticket.departamentoActualId,
-        audience: 'ALL'
-      })
-
-      res.json({ ok: true, ticket: mapTicketCategory(ticket) })
-    } catch (err) {
-      console.error('POST /tickets error:', err)
-      res.status(500).json({ ok: false, error: 'Error al crear ticket' })
-    }
-  }
-)
-
-// ---- Crear ticket por recepción/admin (nuevo flujo con departmentId, compatible con tipoId legacy) ----
 router.post(
   '/tickets/by-reception',
   requireAuth,
-  requireRole('recepcion', 'admin'),
+  requireRole('recepcion', 'maestro'),
   async (req, res) => {
     try {
       const {
         studentId,
-        tipoId,        // legacy (se respeta si viene)
-        departmentId,  // nuevo flujo (selección directa)
+        tipoId,
+        departmentId,
         asunto,
         descripcion,
         cru,
@@ -168,7 +139,6 @@ router.post(
       let departamentoActualId
 
       if (tipoId) {
-        // ---- Flujo legacy: usar tipoId directamente ----
         tipo = await prisma.ticketType.findUnique({
           where: { id: Number(tipoId) }
         })
@@ -177,7 +147,6 @@ router.post(
         }
         departamentoActualId = tipo.departmentId
       } else {
-        // ---- Nuevo flujo: seleccionar departamento y mapear/crear TicketType ----
         const departamento = await prisma.department.findUnique({
           where: { id: Number(departmentId) }
         })
@@ -185,13 +154,11 @@ router.post(
           return res.status(400).json({ ok: false, error: 'Departamento inválido' })
         }
 
-        // Buscar un TicketType existente asignado al departamento
         tipo = await prisma.ticketType.findFirst({
           where: { departmentId: departamento.id },
           orderBy: { id: 'asc' }
         })
 
-        // Si no existe ninguno, creamos uno genérico
         if (!tipo) {
           tipo = await prisma.ticketType.create({
             data: {
@@ -229,7 +196,7 @@ router.post(
         ticketId: ticket.id,
         action: 'CREATE_TICKET',
         byUserId: req.sessionUser.id,
-        details: 'Ticket creado desde recepción/admin'
+        details: 'Ticket creado desde recepción/maestro'
       })
 
       await createNotification(prisma, {
@@ -249,7 +216,10 @@ router.post(
   }
 )
 
-// ---- Tickets del estudiante autenticado ----
+/* ========================
+   Tickets del estudiante
+   ======================== */
+
 router.get('/my/tickets', requireAuth, requireRole('estudiante'), async (req, res) => {
   try {
     const rows = await prisma.ticket.findMany({
@@ -269,7 +239,6 @@ router.get('/my/tickets', requireAuth, requireRole('estudiante'), async (req, re
   }
 })
 
-// ---- Detalle de ticket para estudiante ----
 router.get('/my/tickets/:id', requireAuth, requireRole('estudiante'), async (req, res) => {
   try {
     const id = Number(req.params.id)
@@ -319,8 +288,11 @@ router.get('/my/tickets/:id', requireAuth, requireRole('estudiante'), async (req
   }
 })
 
-// ---- Listado global para admin ----
-router.get('/admin/tickets', requireAuth, requireRole('admin'), async (req, res) => {
+/* ========================
+   Listado para maestro
+   ======================== */
+
+router.get('/admin/tickets', requireAuth, requireRole('maestro'), async (req, res) => {
   try {
     const { q } = req.query || {}
     const where = {}
@@ -350,11 +322,14 @@ router.get('/admin/tickets', requireAuth, requireRole('admin'), async (req, res)
   }
 })
 
-// ---- Listado para el departamento actual del usuario ----
+/* ========================
+   Listado para departamento
+   ======================== */
+
 router.get(
   '/dept/tickets',
   requireAuth,
-  requireRole('departamento', 'admin'),
+  requireRole('departamento', 'maestro'),
   async (req, res) => {
     try {
       const { q } = req.query || {}
@@ -388,11 +363,14 @@ router.get(
   }
 )
 
-// ---- Detalle de ticket para recepción/departamento/admin ----
+/* ========================
+   Detalle de ticket
+   ======================== */
+
 router.get(
   '/tickets/:id',
   requireAuth,
-  requireRole('recepcion', 'departamento', 'admin'),
+  requireRole('recepcion', 'departamento', 'maestro'),
   async (req, res) => {
     try {
       const id = Number(req.params.id)
@@ -444,11 +422,14 @@ router.get(
   }
 )
 
-// ---- Responder ticket ----
+/* ========================
+   Responder ticket
+   ======================== */
+
 router.post(
   '/tickets/:id/messages',
   requireAuth,
-  requireRole('recepcion', 'departamento', 'admin'),
+  requireRole('recepcion', 'departamento', 'maestro'),
   async (req, res) => {
     try {
       const id = Number(req.params.id)
@@ -495,11 +476,14 @@ router.post(
   }
 )
 
-// ---- Reasignar ticket ----
+/* ========================
+   Reasignar ticket
+   ======================== */
+
 router.post(
   '/tickets/:id/reassign',
   requireAuth,
-  requireRole('recepcion', 'admin'),
+  requireRole('recepcion', 'maestro'),
   async (req, res) => {
     try {
       const id = Number(req.params.id)
@@ -561,11 +545,14 @@ router.post(
   }
 )
 
-// ---- Completar ticket ----
+/* ========================
+   Completar ticket
+   ======================== */
+
 router.post(
   '/tickets/:id/complete',
   requireAuth,
-  requireRole('recepcion', 'departamento', 'admin'),
+  requireRole('recepcion', 'departamento', 'maestro'),
   async (req, res) => {
     try {
       const id = Number(req.params.id)

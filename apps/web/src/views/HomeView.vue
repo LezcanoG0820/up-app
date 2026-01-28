@@ -52,9 +52,9 @@
           </div>
         </RouterLink>
 
-        <!-- Recepción / Admin -->
+        <!-- Recepción / Maestro -->
         <RouterLink
-          v-if="user?.rol === 'recepcion' || user?.rol === 'admin'"
+          v-if="user?.rol === 'recepcion' || user?.rol === 'maestro'"
           class="quick-card"
           to="/inbox/reception"
         >
@@ -65,9 +65,9 @@
           </div>
         </RouterLink>
 
-        <!-- Departamento / Admin -->
+        <!-- Departamento / Maestro -->
         <RouterLink
-          v-if="user?.rol === 'departamento' || user?.rol === 'admin'"
+          v-if="user?.rol === 'departamento' || user?.rol === 'maestro'"
           class="quick-card"
           to="/inbox/department"
         >

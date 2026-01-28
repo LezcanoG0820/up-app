@@ -33,18 +33,18 @@
           </template>
 
           <!-- Recepción -->
-          <template v-if="user?.rol === 'recepcion' || user?.rol === 'admin'">
+          <template v-if="user?.rol === 'recepcion' || user?.rol === 'maestro'">
             <RouterLink to="/inbox/reception">Bandeja Recepción</RouterLink>
             <RouterLink to="/reception/new-ticket">Nuevo ticket (recepción)</RouterLink>
           </template>
 
           <!-- Departamento -->
-          <template v-if="user?.rol === 'departamento' || user?.rol === 'admin'">
+          <template v-if="user?.rol === 'departamento' || user?.rol === 'maestro'">
             <RouterLink to="/inbox/department">Bandeja Departamento</RouterLink>
           </template>
 
-          <!-- Documentos (administrativo/departamento/admin) -->
-          <template v-if="user && (user.rol === 'recepcion' || user.rol === 'departamento' || user.rol === 'admin')">
+          <!-- Documentos (administrativo/departamento/maestro) -->
+          <template v-if="user && (user.rol === 'recepcion' || user.rol === 'departamento' || user.rol === 'maestro')">
             <RouterLink to="/documents">Documentos</RouterLink>
           </template>
         </nav>
@@ -81,9 +81,9 @@
       </div>
     </header>
 
-    <!-- Demo de tema/estilos (solo admin/recepción y con ?demo=1) -->
+    <!-- Demo de tema/estilos (solo maestro/recepción y con ?demo=1) -->
     <section
-      v-if="showThemeDemo && (user?.rol === 'admin' || user?.rol === 'recepcion')"
+      v-if="showThemeDemo && (user?.rol === 'maestro' || user?.rol === 'recepcion')"
       class="card"
       style="margin-top:1rem;"
     >
@@ -97,7 +97,7 @@
 
       <p class="text-muted" style="margin:.5rem 0 1rem;">
         Esta demo existe solo para validar el modo claro/oscuro y estilos globales (botones, inputs, tablas, cards).
-        Para verla, entra con un usuario admin o recepción y usa
+        Para verla, entra con un usuario maestro o recepción y usa
         <code>?demo=1</code> en la URL.
       </p>
 

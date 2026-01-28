@@ -11,7 +11,7 @@ const router = express.Router()
 router.get(
   '/students/search',
   requireAuth,
-  requireRole('recepcion', 'admin'),
+  requireRole('recepcion', 'maestro'),
   async (req, res) => {
     try {
       const qRaw = typeof req.query.q === 'string' ? req.query.q.trim() : ''
@@ -44,7 +44,7 @@ router.get(
 router.post(
   '/students',
   requireAuth,
-  requireRole('recepcion', 'admin'),
+  requireRole('recepcion', 'maestro'),
   async (req, res) => {
     try {
       const { nombre, apellido, cedula, email, facultad } = req.body || {}

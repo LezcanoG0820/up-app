@@ -59,7 +59,7 @@ enum Rol {
   estudiante
   recepcion
   departamento
-  admin
+  maestro
 }
 
 model TicketType {
@@ -211,7 +211,7 @@ model Document {
 
 /**
  * ===========================
- * NOTIFICACIONES (NUEVO)
+ * NOTIFICACIONES 
  * ===========================
  */
 

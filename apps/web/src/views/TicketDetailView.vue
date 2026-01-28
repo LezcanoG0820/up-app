@@ -104,9 +104,9 @@
           </div>
         </fieldset>
 
-        <!-- Reasignar (solo recepción/admin) -->
+        <!-- Reasignar (solo recepción/maestro) -->
         <fieldset
-          v-if="isRecepcionOrAdmin"
+          v-if="isRecepcionOrMaestro"
           style="border:1px solid #ddd; border-radius:6px; padding:.75rem;"
         >
           <legend style="padding:0 .25rem;"><strong>Reasignar</strong></legend>
@@ -181,8 +181,8 @@ const loadingReassign = ref(false)
 const loadingComplete = ref(false)
 
 const isStudent = computed(() => session.user?.rol === 'estudiante')
-const isRecepcionOrAdmin = computed(
-  () => session.user?.rol === 'recepcion' || session.user?.rol === 'admin'
+const isRecepcionOrMaestro = computed(
+  () => session.user?.rol === 'recepcion' || session.user?.rol === 'maestro'
 )
 
 function fmt(d) {
@@ -198,8 +198,8 @@ function roleLabel(r) {
     ? 'Recepción'
     : r === 'departamento'
       ? 'Departamento'
-      : r === 'admin'
-        ? 'Admin'
+      : r === 'maestro'
+        ? 'Maestro'
         : 'Estudiante'
 }
 
@@ -244,8 +244,8 @@ async function load() {
 
     ticket.value = data.ticket
 
-    // cargar departamentos solo para recepción/admin
-    if (isRecepcionOrAdmin.value) {
+    // cargar departamentos solo para recepción/maestro
+    if (isRecepcionOrMaestro.value) {
       const { departments: deps } = await manageApi.departments()
       departments.value = deps || []
     } else {
