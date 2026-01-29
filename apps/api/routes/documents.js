@@ -102,10 +102,7 @@ router.get(
         }
       });
 
-      res.json({
-        ok: true,
-        documents: docs.map(docToJson)
-      });
+      res.json({ ok: true, documents: docs.map(docToJson) });
     } catch (err) {
       console.error('GET /api/documents error:', err);
       res.status(500).json({ ok: false, error: 'Error listando documentos' });
@@ -125,20 +122,17 @@ router.post(
   async (req, res) => {
     try {
       const file = req.file;
-      const { title, departmentId } = req.body || {};
-
       if (!file) {
-        return res.status(400).json({ ok: false, error: 'Falta archivo' });
+        return res.status(400).json({ ok: false, error: 'No se recibió archivo' });
       }
 
-      // Departamento asociado:
-      // - si viene como parámetro, se usa ese
-      // - si el usuario es de "departamento", se usa su propio depto
-      // - maestro/recepción pueden dejarlo vacío (null) si así lo desean
+      const { title, departmentId } = req.body || {};
+
+      // maestro/recepción pueden dejarlo vacío
       let deptId = null;
-      if (departmentId) {
+      if (departmentId && departmentId !== '') {
         deptId = Number(departmentId);
-      } else if (req.sessionUser.departamentoId) {
+      } else if (req.sessionUser.rol === 'departamento' && req.sessionUser.departamentoId) {
         deptId = req.sessionUser.departamentoId;
       }
 
@@ -224,6 +218,42 @@ router.get(
     } catch (err) {
       console.error('GET /api/documents/:id/download error:', err);
       res.status(500).json({ ok: false, error: 'Error descargando documento' });
+    }
+  }
+);
+
+/* ========================
+   Ver documento inline (sin descargar)
+   ======================== */
+
+router.get(
+  '/documents/:id/preview',
+  requireAuth,
+  requireRole('recepcion', 'departamento', 'maestro'),
+  async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const doc = await prisma.document.findUnique({ where: { id } });
+
+      if (!doc) {
+        return res.status(404).json({ ok: false, error: 'No existe' });
+      }
+
+      const filepath = path.join(UPLOAD_DIR, doc.filename);
+
+      if (!fs.existsSync(filepath)) {
+        return res.status(404).json({ ok: false, error: 'Archivo no encontrado en el servidor' });
+      }
+
+      // Configurar headers para vista inline
+      res.setHeader('Content-Type', doc.mime || 'application/octet-stream');
+      res.setHeader('Content-Disposition', 'inline');
+      
+      // Enviar el archivo
+      fs.createReadStream(filepath).pipe(res);
+    } catch (err) {
+      console.error('GET /api/documents/:id/preview error:', err);
+      res.status(500).json({ ok: false, error: 'Error visualizando documento' });
     }
   }
 );

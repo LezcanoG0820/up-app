@@ -1,79 +1,51 @@
-<!-- apps/web/src/views/DocumentsView.vue -->
 <template>
-  <main class="grid-gap" style="max-width: 1000px; margin: auto;">
-    <header class="grid-gap">
+  <main class="grid-gap" style="max-width: 1100px; margin: auto;">
+    <header>
       <h1 style="margin: 0;">Documentos</h1>
-      <p class="text-muted" style="margin: 0;">
-        Gestiona los documentos compartidos entre recepción y departamentos.
-      </p>
     </header>
 
-    <!-- Zona de subida -->
-    <section class="card grid-gap">
-      <h2 style="margin: 0 0 .5rem 0; font-size: 1.1rem;">Subir documento</h2>
-
-      <div class="grid-gap" style="max-width: 700px;">
+    <!-- Subida de documentos -->
+    <section class="card">
+      <h2 style="margin: 0 0 .75rem;">Subir nuevo documento</h2>
+      <div class="grid-gap">
         <input
           v-model.trim="uploadTitle"
           type="text"
-          placeholder="Título (opcional, por defecto se usa el nombre del archivo)"
+          placeholder="Título del documento (opcional)"
         />
-
-        <!-- Selector de departamento solo para admin/recepción -->
-        <div v-if="canChooseDepartment" class="grid-gap">
-          <label style="font-weight: 500;">Departamento destino (opcional)</label>
-          <select v-model="uploadDepartmentId">
-            <option value="">Sin departamento específico</option>
-            <option
-              v-for="d in departments"
-              :key="d.id"
-              :value="String(d.id)"
-            >
-              {{ d.nombre }}
-            </option>
-          </select>
-        </div>
-
-        <div style="display: flex; gap: .5rem; flex-wrap: wrap; align-items: center;">
-          <input type="file" @change="onFileChange" />
-          <button :disabled="uploading || !uploadFile" @click="doUpload">
-            {{ uploading ? 'Subiendo…' : 'Subir' }}
-          </button>
-          <span class="text-danger" v-if="uploadError">{{ uploadError }}</span>
-          <span class="text-success" v-if="uploadOk">{{ uploadOk }}</span>
-        </div>
+        <select v-if="canChooseDepartment" v-model="uploadDepartmentId">
+          <option value="">— Sin departamento —</option>
+          <option v-for="d in departments" :key="d.id" :value="d.id">
+            {{ d.nombre }}
+          </option>
+        </select>
+        <input type="file" @change="onFileChange" />
+        <button :disabled="!uploadFile || uploading" @click="doUpload">
+          {{ uploading ? 'Subiendo…' : 'Subir' }}
+        </button>
+        <p class="text-success" v-if="uploadOk">{{ uploadOk }}</p>
+        <p class="text-danger" v-if="uploadError">{{ uploadError }}</p>
       </div>
     </section>
 
-    <!-- Filtros sencillos -->
-    <section class="card grid-gap">
-      <div style="display: flex; gap: .75rem; flex-wrap: wrap; align-items: center;">
-        <strong>Filtros:</strong>
-
-        <button
-          class="btn-secondary"
-          :disabled="loading"
-          @click="reloadAll"
-        >
-          Todos
-        </button>
-
-        <button
-          class="btn-secondary"
-          :disabled="loading"
-          @click="reloadMine"
-        >
-          Mis documentos
-        </button>
-      </div>
-    </section>
-
-    <!-- Tabla de documentos -->
+    <!-- Lista de documentos -->
     <section class="card">
-      <div v-if="loading" class="text-muted">Cargando documentos…</div>
-      <div v-else-if="documents.length === 0" class="text-muted">
-        No hay documentos registrados.
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: .75rem;">
+        <h2 style="margin: 0;">Documentos existentes</h2>
+        <div style="display: flex; gap: .5rem;">
+          <button class="btn-secondary" @click="reloadAll">Todos</button>
+          <button class="btn-secondary" @click="reloadMine">Mis documentos</button>
+        </div>
       </div>
+
+      <div v-if="loading" style="padding: 1rem; text-align: center;">
+        Cargando documentos…
+      </div>
+
+      <div v-else-if="!documents.length" style="padding: 1rem; text-align: center;" class="text-muted">
+        No hay documentos.
+      </div>
+
       <div v-else style="overflow: auto;">
         <table>
           <thead>
@@ -139,6 +111,42 @@
       </div>
       <p class="text-danger" v-if="listError" style="margin-top: .5rem;">{{ listError }}</p>
     </section>
+
+    <!-- Visor de documentos -->
+    <section v-if="viewer.open" class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 style="margin: 0;">Vista previa — {{ viewer.doc?.originalName }}</h3>
+        <button class="btn-secondary" @click="closeViewer">Cerrar vista previa</button>
+      </div>
+
+      <div v-if="isExcel(viewer.doc)" class="grid-gap">
+        <p class="text-muted">Vista previa de Excel (solo lectura). Para edición completa, descarga el archivo.</p>
+        <div v-html="excelHtml" style="overflow: auto;"></div>
+      </div>
+
+      <div v-else-if="isPDF(viewer.doc)" style="height: 70vh;">
+        <iframe
+          :src="previewUrl(viewer.doc.id)"
+          type="application/pdf"
+          style="width: 100%; height: 100%; border: 1px solid var(--border); border-radius: var(--radius);"
+        ></iframe>
+        <p class="text-muted" style="margin-top: .5rem;">
+          Si el PDF no carga, <a :href="downloadUrl(viewer.doc.id)" target="_blank">descárgalo aquí</a>.
+        </p>
+      </div>
+
+      <div v-else-if="isImage(viewer.doc)">
+        <img
+          :src="previewUrl(viewer.doc.id)"
+          alt="Preview"
+          style="max-width: 100%; border: 1px solid var(--border); border-radius: var(--radius);"
+        />
+      </div>
+
+      <div v-else>
+        <p>No hay vista previa disponible para este tipo de archivo. Puedes descargarlo usando el botón "Descargar".</p>
+      </div>
+    </section>
   </main>
 </template>
 
@@ -146,6 +154,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { documentsApi, manageApi } from '../api';
 import { session } from '../store/session';
+import * as XLSX from 'xlsx';
 
 const documents = ref([]);
 const loading = ref(false);
@@ -159,18 +168,64 @@ const uploading = ref(false);
 const uploadError = ref('');
 const uploadOk = ref('');
 
-// Departamentos para admin/recepción
+// Departamentos para maestro/recepción
 const departments = ref([]);
 
 // Edición de título
 const editingId = ref(null);
 const editTitle = ref('');
 
+// Visor de documentos
+const viewer = ref({ open: false, doc: null });
+const excelHtml = ref('');
+
 // Usuario actual
 const user = computed(() => session.user || null);
 const canChooseDepartment = computed(() => {
-  return user.value && (user.value.rol === 'admin' || user.value.rol === 'recepcion');
+  return user.value && (user.value.rol === 'maestro' || user.value.rol === 'recepcion');
 });
+
+/* ========================
+   Utilidades de formato
+   ======================== */
+
+function formatDate(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+}
+
+function isPDF(d) {
+  return (d?.mime || '').includes('pdf');
+}
+
+function isImage(d) {
+  return (d?.mime || '').startsWith('image/');
+}
+
+function isExcel(d) {
+  const m = (d?.mime || '').toLowerCase();
+  return (
+    m.includes('spreadsheetml') ||
+    m.includes('excel') ||
+    d?.originalName?.toLowerCase().endsWith('.xlsx') ||
+    d?.originalName?.toLowerCase().endsWith('.xls')
+  );
+}
+
+function downloadUrl(id) {
+  return documentsApi.downloadUrl(id);
+}
+
+function previewUrl(id) {
+  return documentsApi.previewUrl(id);
+}
 
 /* ========================
    Carga de documentos
@@ -249,23 +304,48 @@ async function doUpload() {
 }
 
 /* ========================
-   Acciones sobre documentos
+   Visor de documentos
    ======================== */
 
 async function viewDoc(doc) {
+  viewer.value = { open: true, doc };
+  excelHtml.value = '';
+
   try {
-    await documentsApi.view(doc.id);
+    await documentsApi.view(doc.id); // Marca como visto
   } catch (e) {
-    console.error(e);
+    console.error('Error marcando como visto:', e);
   }
-  const url = documentsApi.downloadUrl(doc.id);
-  window.open(url, '_blank');
+
+  if (isExcel(doc)) {
+    try {
+      const resp = await fetch(previewUrl(doc.id), { credentials: 'include' });
+      const blob = await resp.blob();
+      const ab = await blob.arrayBuffer();
+      const wb = XLSX.read(ab);
+      const first = wb.SheetNames[0];
+      const html = XLSX.utils.sheet_to_html(wb.Sheets[first], { editable: false });
+      excelHtml.value = html;
+    } catch (e) {
+      console.error('Error renderizando Excel:', e);
+      excelHtml.value = '<p class="text-danger">No se pudo renderizar Excel. Descarga el archivo.</p>';
+    }
+  }
+}
+
+function closeViewer() {
+  viewer.value = { open: false, doc: null };
+  excelHtml.value = '';
 }
 
 function downloadDoc(doc) {
-  const url = documentsApi.downloadUrl(doc.id);
+  const url = downloadUrl(doc.id);
   window.open(url, '_blank');
 }
+
+/* ========================
+   Edición de documentos
+   ======================== */
 
 function isEditing(id) {
   return editingId.value === id;
@@ -312,27 +392,11 @@ async function removeDoc(doc) {
 }
 
 /* ========================
-   Utilidades
-   ======================== */
-
-function formatDate(value) {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mi = String(d.getMinutes()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
-}
-
-/* ========================
    Carga inicial
    ======================== */
 
 onMounted(async () => {
-  // Cargar departamentos solo para admin/recepción
+  // Cargar departamentos solo para maestro/recepción
   if (canChooseDepartment.value) {
     try {
       const j = await manageApi.departments();
