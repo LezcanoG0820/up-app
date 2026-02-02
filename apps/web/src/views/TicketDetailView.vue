@@ -2,19 +2,19 @@
   <main style="padding:2rem; max-width:900px; margin:auto;">
     <!-- Estados globales -->
     <div v-if="loading">Cargando…</div>
-    <p v-if="error" style="color:crimson">{{ error }}</p>
+    <p v-if="error" style="color:var(--danger)">{{ error }}</p>
 
     <section v-if="!loading && ticket" class="grid-gap" style="display:flex; flex-direction:column; gap:1.5rem;">
       <!-- ENCABEZADO + RESUMEN -->
       <header>
         <h1 style="margin:0 0 .25rem 0;">Ticket {{ ticket.token }}</h1>
-        <p style="margin:0; font-size:.9rem; color:#555;">
+        <p style="margin:0; font-size:.9rem; color:var(--muted);">
           Creado: {{ fmt(ticket.createdAt) }}
         </p>
       </header>
 
       <section
-        style="border:1px solid #ddd; border-radius:8px; padding:1rem; display:grid; grid-template-columns:1fr 1fr; gap:.5rem;"
+        style="border:1px solid var(--border); border-radius:8px; padding:1rem; display:grid; grid-template-columns:1fr 1fr; gap:.5rem; background:var(--surface);"
       >
         <div style="grid-column:1 / -1; font-weight:600;">Resumen</div>
         <div>
@@ -31,7 +31,7 @@
 
       <!-- ESTUDIANTE -->
       <section
-        style="border:1px solid #ddd; border-radius:8px; padding:1rem; display:grid; grid-template-columns:1fr 1fr; gap:.5rem;"
+        style="border:1px solid var(--border); border-radius:8px; padding:1rem; display:grid; grid-template-columns:1fr 1fr; gap:.5rem; background:var(--surface);"
       >
         <div style="grid-column:1 / -1; font-weight:600;">Estudiante</div>
         <div style="grid-column:1 / -1;">
@@ -53,7 +53,7 @@
       </section>
 
       <!-- ASUNTO + DESCRIPCIÓN -->
-      <section style="border:1px solid #ddd; border-radius:8px; padding:1rem; display:grid; gap:.5rem;">
+      <section style="border:1px solid var(--border); border-radius:8px; padding:1rem; display:grid; gap:.5rem; background:var(--surface);">
         <div><strong>Asunto:</strong> {{ ticket.asunto }}</div>
         <div>
           <strong>Descripción:</strong>
@@ -85,11 +85,11 @@
       <!-- ACCIONES (solo staff, no estudiante) -->
       <section
         v-if="!isStudent"
-        style="display:grid; gap:1rem; border:1px solid #ddd; border-radius:8px; padding:1rem;"
+        style="display:grid; gap:1rem; border:1px solid var(--border); border-radius:8px; padding:1rem; background:var(--surface);"
       >
         <!-- Responder -->
-        <fieldset style="border:1px solid #ddd; border-radius:6px; padding:.75rem;">
-          <legend style="padding:0 .25rem;"><strong>Responder</strong></legend>
+        <fieldset style="border:1px solid var(--border); border-radius:6px; padding:.75rem;">
+          <legend style="padding:0 .25rem; color:var(--muted);"><strong>Responder</strong></legend>
           <textarea
             v-model="contenidoHtml"
             rows="4"
@@ -100,16 +100,16 @@
             <button @click="enviarRespuesta" :disabled="loadingReply">
               {{ loadingReply ? 'Enviando…' : 'Enviar respuesta' }}
             </button>
-            <span v-if="replyMsg" style="margin-left:.5rem; color:green">{{ replyMsg }}</span>
+            <span v-if="replyMsg" style="margin-left:.5rem; color:var(--success)">{{ replyMsg }}</span>
           </div>
         </fieldset>
 
-        <!-- Reasignar (solo recepción/maestro) -->
+        <!-- Reasignar (solo recepción/admin) -->
         <fieldset
-          v-if="isRecepcionOrMaestro"
-          style="border:1px solid #ddd; border-radius:6px; padding:.75rem;"
+          v-if="isRecepcionOrAdmin"
+          style="border:1px solid var(--border); border-radius:6px; padding:.75rem;"
         >
-          <legend style="padding:0 .25rem;"><strong>Reasignar</strong></legend>
+          <legend style="padding:0 .25rem; color:var(--muted);"><strong>Reasignar</strong></legend>
           <select v-model.number="departmentId" style="min-width:280px;">
             <option :value="0" disabled>Selecciona departamento destino</option>
             <option v-for="d in departments" :key="d.id" :value="d.id">
@@ -124,8 +124,8 @@
         </fieldset>
 
         <!-- Completar -->
-        <fieldset style="border:1px solid #ddd; border-radius:6px; padding:.75rem;">
-          <legend style="padding:0 .25rem;"><strong>Completar</strong></legend>
+        <fieldset style="border:1px solid var(--border); border-radius:6px; padding:.75rem;">
+          <legend style="padding:0 .25rem; color:var(--muted);"><strong>Completar</strong></legend>
           <p style="margin:0 0 .5rem 0; font-size:.9rem;">
             Marca el ticket como completado cuando la gestión haya finalizado.
           </p>
@@ -142,14 +142,14 @@
           <div
             v-for="log in ticket.auditLogs"
             :key="log.id"
-            style="font-size:.9rem; padding:.25rem 0; border-bottom:1px dashed #ddd;"
+            style="font-size:.9rem; padding:.25rem 0; border-bottom:1px dashed var(--border);"
           >
             {{ fmt(log.createdAt) }} — <strong>{{ auditLabel(log.action) }}</strong>
             <span v-if="log.actor">
               &nbsp;por {{ log.actor.nombre }} {{ log.actor.apellido }}
               ({{ roleLabel(log.actor.rol) }})
             </span>
-            <div v-if="log.details" style="color:#666">{{ log.details }}</div>
+            <div v-if="log.details" style="color:var(--muted)">{{ log.details }}</div>
           </div>
         </div>
         <p v-else>Sin historial.</p>
@@ -181,8 +181,8 @@ const loadingReassign = ref(false)
 const loadingComplete = ref(false)
 
 const isStudent = computed(() => session.user?.rol === 'estudiante')
-const isRecepcionOrMaestro = computed(
-  () => session.user?.rol === 'recepcion' || session.user?.rol === 'maestro'
+const isRecepcionOrAdmin = computed(
+  () => session.user?.rol === 'recepcion' || session.user?.rol === 'admin' || session.user?.rol === 'maestro'
 )
 
 function fmt(d) {
@@ -198,28 +198,28 @@ function roleLabel(r) {
     ? 'Recepción'
     : r === 'departamento'
       ? 'Departamento'
-      : r === 'maestro'
-        ? 'Maestro'
-        : 'Estudiante'
+      : r === 'admin'
+        ? 'Admin'
+        : r === 'maestro'
+          ? 'Maestro'
+          : 'Estudiante'
 }
 
-function auditLabel(a) {
-  switch (a) {
-    case 'ticket_created':
-      return 'Ticket creado'
-    case 'message_added':
-      return 'Nuevo mensaje'
-    case 'ticket_reassigned':
-      return 'Ticket reasignado'
-    case 'ticket_completed':
-      return 'Ticket completado'
-    default:
-      return a || ''
+function auditLabel(action) {
+  const map = {
+    CREATE: 'Ticket creado',
+    CREATE_TICKET: 'Ticket creado',
+    ADD_REPLY: 'Respuesta agregada',
+    REPLY: 'Respuesta agregada',
+    REASSIGN: 'Reasignado',
+    COMPLETE: 'Completado',
+    CLOSE: 'Cerrado'
   }
+  return map[action] || action
 }
 
-function statusClass(value) {
-  switch (value) {
+function statusClass(val) {
+  switch (val) {
     case 'abierto':
       return 'status-open'
     case 'en_progreso':
@@ -237,15 +237,14 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    // estudiante ve su propio endpoint; staff usa el de gestión
     const data = isStudent.value
       ? await ticketsApi.myTicketById(id)
       : await manageApi.ticketById(id)
 
     ticket.value = data.ticket
 
-    // cargar departamentos solo para recepción/maestro
-    if (isRecepcionOrMaestro.value) {
+    // cargar departamentos solo para recepción/admin/maestro
+    if (isRecepcionOrAdmin.value) {
       const { departments: deps } = await manageApi.departments()
       departments.value = deps || []
     } else {
@@ -259,7 +258,7 @@ async function load() {
 }
 
 async function enviarRespuesta() {
-  if (!contenidoHtml.value) return
+  if (!contenidoHtml.value.trim()) return
   loadingReply.value = true
   replyMsg.value = ''
   error.value = ''
@@ -321,9 +320,19 @@ onMounted(load)
   color: #075985;
 }
 
+:root[data-theme="dark"] .status-open {
+  background: rgba(56, 189, 248, 0.2);
+  color: #7dd3fc;
+}
+
 .status-progress {
   background: #fef3c7;
   color: #92400e;
+}
+
+:root[data-theme="dark"] .status-progress {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fcd34d;
 }
 
 .status-completed {
@@ -331,14 +340,29 @@ onMounted(load)
   color: #166534;
 }
 
+:root[data-theme="dark"] .status-completed {
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+}
+
 .status-closed {
   background: #fee2e2;
   color: #991b1b;
 }
 
+:root[data-theme="dark"] .status-closed {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
 .status-default {
   background: #e5e7eb;
   color: #374151;
+}
+
+:root[data-theme="dark"] .status-default {
+  background: rgba(148, 163, 184, 0.2);
+  color: #cbd5e1;
 }
 
 .msg-bubble {
@@ -347,12 +371,24 @@ onMounted(load)
   border: 1px solid #e5e7eb;
 }
 
+:root[data-theme="dark"] .msg-bubble {
+  border-color: var(--border);
+}
+
 .msg-staff {
   background: #f9fafb;
 }
 
+:root[data-theme="dark"] .msg-staff {
+  background: #1e293b;
+}
+
 .msg-student {
   background: #ecfeff;
+}
+
+:root[data-theme="dark"] .msg-student {
+  background: #0f2a2e;
 }
 
 .msg-meta {
@@ -360,7 +396,16 @@ onMounted(load)
   color: #6b7280;
 }
 
+:root[data-theme="dark"] .msg-meta {
+  color: var(--muted);
+}
+
 .msg-body {
   margin-top: 0.5rem;
+  color: #1f2937;
+}
+
+:root[data-theme="dark"] .msg-body {
+  color: var(--text);
 }
 </style>

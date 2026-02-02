@@ -450,7 +450,34 @@ router.get('/tickets/:id', requireAuth, requireRole('recepcion', 'departamento',
       include: {
         estudiante: true,
         tipo: true,
-        departamentoActual: true
+        departamentoActual: true,
+        messages: {
+          orderBy: { createdAt: 'asc' },
+          include: {
+            autor: {
+              select: {
+                id: true,
+                nombre: true,
+                apellido: true,
+                rol: true
+              }
+            }
+          }
+        },
+        auditLogs: {
+          orderBy: { createdAt: 'asc' },
+          include: {
+            actor: {
+              select: {
+                id: true,
+                nombre: true,
+                apellido: true,
+                email: true,
+                rol: true
+              }
+            }
+          }
+        }
       }
     });
 
