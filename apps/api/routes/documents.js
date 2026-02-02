@@ -223,7 +223,7 @@ router.get(
 );
 
 /* ========================
-   Ver documento inline (sin descargar)
+   Ver documento inline (preview)
    ======================== */
 
 router.get(
@@ -245,11 +245,10 @@ router.get(
         return res.status(404).json({ ok: false, error: 'Archivo no encontrado en el servidor' });
       }
 
-      // Configurar headers para vista inline
+      // Enviar inline en lugar de attachment
       res.setHeader('Content-Type', doc.mime || 'application/octet-stream');
       res.setHeader('Content-Disposition', 'inline');
       
-      // Enviar el archivo
       fs.createReadStream(filepath).pipe(res);
     } catch (err) {
       console.error('GET /api/documents/:id/preview error:', err);

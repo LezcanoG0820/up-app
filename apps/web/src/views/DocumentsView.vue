@@ -129,10 +129,9 @@
           :src="previewUrl(viewer.doc.id)"
           type="application/pdf"
           style="width: 100%; height: 100%; border: 1px solid var(--border); border-radius: var(--radius);"
-        ></iframe>
-        <p class="text-muted" style="margin-top: .5rem;">
-          Si el PDF no carga, <a :href="downloadUrl(viewer.doc.id)" target="_blank">descárgalo aquí</a>.
-        </p>
+        >
+          <p>Tu navegador no soporta vista previa de PDFs. <a :href="downloadUrl(viewer.doc.id)" target="_blank">Descargar PDF</a></p>
+        </iframe>
       </div>
 
       <div v-else-if="isImage(viewer.doc)">

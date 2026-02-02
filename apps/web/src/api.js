@@ -1,74 +1,80 @@
 // apps/web/src/api.js
+const BASE = ''
 
-function qs (obj) {
-  if (!obj || !Object.keys(obj).length) return ''
-  const pairs = []
-  for (const k in obj) {
-    if (obj[k] != null && obj[k] !== '') {
-      pairs.push(`${encodeURIComponent(k)}=${encodeURIComponent(obj[k])}`)
-    }
-  }
-  return pairs.length ? '?' + pairs.join('&') : ''
-}
-
-async function request (url, opts = {}) {
-  const { body, ...rest } = opts
-  const headers = { 'Content-Type': 'application/json', ...rest.headers }
-  const res = await fetch(url, {
-    credentials: 'include',
-    ...rest,
-    headers,
-    body: body ? JSON.stringify(body) : undefined
-  })
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(text || `HTTP ${res.status}`)
-  }
-  const ct = res.headers.get('content-type') || ''
-  return ct.includes('application/json') ? res.json() : res.text()
-}
-
-async function requestForm (url, formData, method = 'POST') {
-  const res = await fetch(url, {
+async function request (path, { method = 'GET', body } = {}) {
+  const opts = {
     method,
-    credentials: 'include',
-    body: formData
-  })
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  }
+  if (body) opts.body = JSON.stringify(body)
+
+  const res = await fetch(`${BASE}${path}`, opts)
   if (!res.ok) {
-    const text = await res.text()
-    throw new Error(text || `HTTP ${res.status}`)
+    let msg = `HTTP ${res.status}`
+    try {
+      const j = await res.json()
+      if (j?.error) msg = j.error
+    } catch {}
+    throw new Error(msg)
   }
   const ct = res.headers.get('content-type') || ''
   return ct.includes('application/json') ? res.json() : res.text()
+}
+
+function qs (obj = {}) {
+  const sp = new URLSearchParams()
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined && v !== null && String(v).length) sp.append(k, v)
+  }
+  const s = sp.toString()
+  return s ? `?${s}` : ''
 }
 
 export const authApi = {
-  login: (email, password) => request('/auth/login', { method: 'POST', body: { email, password } }),
   register: (payload) => request('/auth/register', { method: 'POST', body: payload }),
-  logout: () => request('/auth/logout', { method: 'POST' }),
-  me: () => request('/auth/me')
-}
-
-export const manageApi = {
-  departments: () => request('/api/departments'),
-  ticketTypes: (departmentId) => request(`/api/ticket-types${qs({ departmentId })}`),
-  searchStudents: (q) => request(`/api/students/search${qs({ q })}`)
+  login:    (payload) => request('/auth/login',    { method: 'POST', body: payload }),
+  me:       () => request('/auth/me'),
+  logout:   () => request('/auth/logout', { method: 'POST' })
 }
 
 export const ticketsApi = {
-  create: (payload) => request('/api/tickets', { method: 'POST', body: payload }),
-  myTickets: () => request('/api/my/tickets'),
-  receptionInbox: (params = {}) => request(`/api/tickets/reception${qs(params)}`),
-  deptInbox: (params = {}) => request(`/api/tickets/department${qs(params)}`),
-  detail: (id) => request(`/api/tickets/${id}`),
-  reply: (id, payload) => request(`/api/tickets/${id}/reply`, { method: 'POST', body: payload }),
-  reassign: (id, payload) => request(`/api/tickets/${id}/reassign`, { method: 'POST', body: payload }),
-  complete: (id) => request(`/api/tickets/${id}/complete`, { method: 'POST' }),
-  uploadAttachment: (id, file) => {
-    const fd = new FormData()
-    fd.append('file', file)
-    return requestForm(`/api/tickets/${id}/attach`, fd, 'POST')
+  getTypes:     () => request('/api/ticket-types'),
+  create:       (payload) => request('/api/tickets', { method: 'POST', body: payload }),
+  myList:       () => request('/api/my/tickets'),
+  myTickets:    () => request('/api/my/tickets'),
+  myTicketById: (id) => request(`/api/my/tickets/${id}`)
+}
+
+export const manageApi = {
+  adminTickets:  (filters = {}) => request(`/api/admin/tickets${qs(filters)}`),
+  exportTickets: (filters = {}) => { window.location.href = `/api/admin/tickets/export${qs(filters)}` },
+  deptTickets:   (filters = {}) => request(`/api/dept/tickets${qs(filters)}`),
+  ticketById:    (id) => request(`/api/tickets/${id}`),
+  reply:         (id, contenidoHtml) => request(`/api/tickets/${id}/messages`, { method: 'POST', body: { contenidoHtml } }),
+  reassign:      (id, { departmentSlug, departmentId } = {}) => request(`/api/tickets/${id}/reassign`, { method: 'POST', body: { departmentSlug, departmentId } }),
+  complete:      (id) => request(`/api/tickets/${id}/complete`, { method: 'POST' }),
+  departments:   () => request('/api/departments'),
+  getCRUs:       () => request('/api/crus'),
+  getFacultades: () => request('/api/facultades')
+}
+
+async function requestForm (path, formData, method = 'POST') {
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    body: formData,
+    credentials: 'include'
+  })
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`
+    try {
+      const j = await res.json()
+      if (j?.error) msg = j.error
+    } catch {}
+    throw new Error(msg)
   }
+  const ct = res.headers.get('content-type') || ''
+  return ct.includes('application/json') ? res.json() : res.text()
 }
 
 export const documentsApi = {
@@ -87,7 +93,6 @@ export const documentsApi = {
   remove: (id) => request(`/api/documents/${id}`, { method: 'DELETE' })
 }
 
-// Recepción (estudiantes + tickets en su nombre)
 export const studentsApi = {
   search: (q) => request(`/api/students/search${qs({ q })}`),
   create: (payload) => request('/api/students', { method: 'POST', body: payload })
@@ -97,7 +102,6 @@ export const receptionTicketsApi = {
   createForStudent: (payload) => request('/api/tickets/by-reception', { method: 'POST', body: payload })
 }
 
-// Notificaciones
 export const notifApi = {
   list:       () => request('/api/notifications'),
   markRead:   (id) => request(`/api/notifications/${id}/read`, { method: 'POST' }),
