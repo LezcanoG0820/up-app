@@ -1,5 +1,5 @@
 <template>
-  <div style="padding: 1rem; max-width: 1100px; margin: auto;">
+  <div style="padding: 1rem; max-width: 1500px; margin: auto;">
     <header
       style="display:flex; gap:1rem; align-items:center; justify-content:space-between; border-bottom:1px solid #ddd; padding-bottom:.75rem;"
     >
@@ -36,11 +36,6 @@
           <template v-if="user?.rol === 'recepcion' || user?.rol === 'maestro'">
             <RouterLink to="/inbox/reception">Bandeja Recepción</RouterLink>
             <RouterLink to="/reception/new-ticket">Nuevo ticket (recepción)</RouterLink>
-          </template>
-
-          <!-- Departamento -->
-          <template v-if="user?.rol === 'departamento' || user?.rol === 'maestro'">
-            <RouterLink to="/inbox/department">Bandeja Departamento</RouterLink>
           </template>
 
           <!-- Documentos (administrativo/departamento/maestro) -->

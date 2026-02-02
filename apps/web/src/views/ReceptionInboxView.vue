@@ -1,5 +1,5 @@
 <template>
-  <main class="grid-gap" style="max-width:1200px; margin:2rem auto;">
+  <main class="grid-gap" style="margin: 2rem auto;">
     <!-- Encabezado -->
     <header class="grid-gap" style="text-align:center;">
       <h1 style="margin:0;">Bandeja de Recepción</h1>
@@ -81,7 +81,7 @@
         No hay tickets que coincidan con los filtros actuales.
       </div>
 
-      <div v-else style="overflow:auto;">
+      <div v-else style="overflow:auto; display:flex; justify-content:center;">
         <table class="inbox-table">
           <thead>
             <tr>
