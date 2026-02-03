@@ -43,8 +43,8 @@
             <RouterLink to="/documents">Documentos</RouterLink>
           </template>
 
-          <!-- Gestión de Usuarios (solo admin) -->
-           <template v-if="user && user.rol === 'admin'">
+          <!-- Gestión de Usuarios (solo maestro) -->
+           <template v-if="user && user.rol === 'maestro'">
           <RouterLink to="/users">Usuarios</RouterLink> 
           </template>
         </nav>

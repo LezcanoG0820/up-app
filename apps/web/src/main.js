@@ -65,7 +65,7 @@ const routes = [
     path: '/users',
     name: 'user-management',
     component: UserManagementView,
-    meta: { requiresAuth: true, roles: ['admin'] }
+    meta: { requiresAuth: true, roles: ['maestro'] }
   },
   
   // 404 simple

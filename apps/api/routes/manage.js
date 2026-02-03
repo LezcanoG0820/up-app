@@ -213,19 +213,19 @@ router.post(
 );
 
 /* ========================
-   GESTIÓN DE USUARIOS (ADMIN)
-   Solo admin puede crear/editar/eliminar usuarios
+   GESTIÓN DE USUARIOS (MAESTRO)
+   Solo maestro puede crear/editar/eliminar usuarios
    ======================== */
 
 // Listar todos los usuarios
-router.get('/admin/users', requireAuth, requireRole('admin'), async (req, res) => {
+router.get('/admin/users', requireAuth, requireRole('maestro'), async (req, res) => {
   try {
     const { rol, q } = req.query;
     
     const where = {};
     
     // Filtro por rol
-    if (rol && ['admin', 'recepcion', 'departamento', 'estudiante'].includes(rol)) {
+    if (rol && ['maestro', 'recepcion', 'departamento', 'estudiante'].includes(rol)) {
       where.rol = rol;
     }
     
@@ -271,8 +271,8 @@ router.get('/admin/users', requireAuth, requireRole('admin'), async (req, res) =
   }
 });
 
-// Crear nuevo usuario (admin, recepcion, departamento)
-router.post('/admin/users', requireAuth, requireRole('admin'), async (req, res) => {
+// Crear nuevo usuario (maestro, recepcion, departamento)
+router.post('/admin/users', requireAuth, requireRole('maestro'), async (req, res) => {
   try {
     const { nombre, apellido, cedula, email, rol, departamentoId, facultad } = req.body || {};
 
@@ -285,10 +285,10 @@ router.post('/admin/users', requireAuth, requireRole('admin'), async (req, res) 
     }
 
     // Validar roles permitidos (NO se puede crear estudiantes desde aquí)
-    if (!['admin', 'recepcion', 'departamento'].includes(rol)) {
+    if (!['maestro', 'recepcion', 'departamento'].includes(rol)) {
       return res.status(400).json({ 
         ok: false, 
-        error: 'Rol inválido. Permitidos: admin, recepcion, departamento' 
+        error: 'Rol inválido. Permitidos: maestro, recepcion, departamento' 
       });
     }
 
@@ -381,7 +381,7 @@ router.post('/admin/users', requireAuth, requireRole('admin'), async (req, res) 
     res.json({ 
       ok: true, 
       user,
-      tempPassword // Se muestra al admin para que se lo comunique al usuario
+      tempPassword // Se muestra al maestro para que se lo comunique al usuario
     });
   } catch (err) {
     console.error('POST /admin/users error:', err);
@@ -390,7 +390,7 @@ router.post('/admin/users', requireAuth, requireRole('admin'), async (req, res) 
 });
 
 // Editar usuario existente
-router.patch('/admin/users/:id', requireAuth, requireRole('admin'), async (req, res) => {
+router.patch('/admin/users/:id', requireAuth, requireRole('maestro'), async (req, res) => {
   try {
     const id = Number(req.params.id);
     const { nombre, apellido, cedula, email, rol, departamentoId, facultad } = req.body || {};
@@ -414,7 +414,7 @@ router.patch('/admin/users/:id', requireAuth, requireRole('admin'), async (req, 
     if (email) updateData.email = String(email).toLowerCase().trim();
     
     // Actualizar rol si se proporciona
-    if (rol && ['admin', 'recepcion', 'departamento', 'estudiante'].includes(rol)) {
+    if (rol && ['maestro', 'recepcion', 'departamento', 'estudiante'].includes(rol)) {
       updateData.rol = rol;
       
       // Si cambia a departamento, validar departamentoId
@@ -509,7 +509,7 @@ router.patch('/admin/users/:id', requireAuth, requireRole('admin'), async (req, 
 });
 
 // Eliminar usuario
-router.delete('/admin/users/:id', requireAuth, requireRole('admin'), async (req, res) => {
+router.delete('/admin/users/:id', requireAuth, requireRole('maestro'), async (req, res) => {
   try {
     const id = Number(req.params.id);
 
@@ -523,7 +523,7 @@ router.delete('/admin/users/:id', requireAuth, requireRole('admin'), async (req,
       return res.status(404).json({ ok: false, error: 'Usuario no encontrado' });
     }
 
-    // Prevenir que el admin se elimine a sí mismo
+    // Prevenir que el maestro se elimine a sí mismo
     if (id === req.sessionUser.id) {
       return res.status(400).json({ 
         ok: false, 
