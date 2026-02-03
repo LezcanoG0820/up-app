@@ -59,6 +59,7 @@ export const manageApi = {
   getFacultades: () => request('/api/facultades')
 }
 
+// ---- Documentos ----
 async function requestForm (path, formData, method = 'POST') {
   const res = await fetch(`${BASE}${path}`, {
     method,
@@ -88,11 +89,11 @@ export const documentsApi = {
   },
   view: (id) => request(`/api/documents/${id}/view`, { method: 'PATCH' }),
   downloadUrl: (id) => `/api/documents/${id}/download`,
-  previewUrl: (id) => `/api/documents/${id}/preview`,
   rename: (id, payload) => request(`/api/documents/${id}`, { method: 'PATCH', body: payload }),
   remove: (id) => request(`/api/documents/${id}`, { method: 'DELETE' })
 }
 
+// Recepción (estudiantes + tickets en su nombre)
 export const studentsApi = {
   search: (q) => request(`/api/students/search${qs({ q })}`),
   create: (payload) => request('/api/students', { method: 'POST', body: payload })
@@ -102,8 +103,17 @@ export const receptionTicketsApi = {
   createForStudent: (payload) => request('/api/tickets/by-reception', { method: 'POST', body: payload })
 }
 
+// Notificaciones
 export const notifApi = {
   list:       () => request('/api/notifications'),
   markRead:   (id) => request(`/api/notifications/${id}/read`, { method: 'POST' }),
   markAllRead: () => request('/api/notifications/read-all', { method: 'POST' })
+}
+
+// ---- GESTIÓN DE USUARIOS (ADMIN) ----
+export const usersApi = {
+  list: (filters = {}) => request(`/api/admin/users${qs(filters)}`),
+  create: (payload) => request('/api/admin/users', { method: 'POST', body: payload }),
+  update: (id, payload) => request(`/api/admin/users/${id}`, { method: 'PATCH', body: payload }),
+  delete: (id) => request(`/api/admin/users/${id}`, { method: 'DELETE' })
 }

@@ -16,6 +16,7 @@ import TicketDetailView from './views/TicketDetailView.vue'
 import AdminDocumentsView from './views/AdminDocumentsView.vue' 
 import DeptDocumentsView from './views/DeptDocumentsView.vue'
 import DocumentsView from './views/DocumentsView.vue'
+import UserManagementView from './views/UserManagementView.vue'
 
 //vista para crear tickets desde recepción
 import ReceptionNewTicketView from './views/ReceptionNewTicketView.vue'
@@ -58,6 +59,13 @@ const routes = [
     name: 'documents',
     component: DocumentsView,
     meta: { requiresAuth: true, roles: ['recepcion', 'departamento', 'maestro'] } 
+  },
+
+  {
+    path: '/users',
+    name: 'user-management',
+    component: UserManagementView,
+    meta: { requiresAuth: true, roles: ['admin'] }
   },
   
   // 404 simple

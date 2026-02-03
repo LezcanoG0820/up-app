@@ -80,18 +80,26 @@ router.post('/register', async (req, res) => {
   }
 });
 
-/* ---------- Login ---------- */
+/* ---------- Login (email O cédula) ---------- */
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body || {};
-    const emailN = normEmail(email);
+    const { identifier, password } = req.body || {};
     const pwd = String(password || '');
 
-    if (!emailN || !pwd) {
+    if (!identifier || !pwd) {
       return res.status(400).json({ ok: false, error: 'Faltan credenciales' });
     }
 
-    const user = await prisma.user.findUnique({ where: { email: emailN } });
+    const identifierClean = String(identifier).trim();
+
+    // Detectar si es email o cédula
+    const isEmail = isValidEmail(identifierClean);
+    const searchCondition = isEmail
+      ? { email: normEmail(identifierClean) }
+      : { cedula: identifierClean };
+
+    const user = await prisma.user.findUnique({ where: searchCondition });
+    
     if (!user || !user.passwordHash) {
       return res.status(400).json({ ok: false, error: 'Credenciales inválidas' });
     }
@@ -126,7 +134,16 @@ router.post('/login', async (req, res) => {
     res.json({
       ok: true,
       message: 'Login exitoso',
-      user: { id: user.id, rol: user.rol, email: user.email, nombre: user.nombre, apellido: user.apellido, cedula: user.cedula, facultad: user.facultad }
+      user: { 
+        id: user.id, 
+        rol: user.rol, 
+        email: user.email, 
+        nombre: user.nombre, 
+        apellido: user.apellido, 
+        cedula: user.cedula, 
+        facultad: user.facultad,
+        departamentoId: user.departamentoId
+      }
     });
   } catch (err) {
     console.error('Error en login:', err);
@@ -142,7 +159,16 @@ router.get('/me', async (req, res) => {
     }
     const user = await prisma.user.findUnique({
       where: { id: req.session.userId },
-      select: { id: true, nombre: true, apellido: true, email: true, rol: true, cedula: true, facultad: true }
+      select: { 
+        id: true, 
+        nombre: true, 
+        apellido: true, 
+        email: true, 
+        rol: true, 
+        cedula: true, 
+        facultad: true,
+        departamentoId: true
+      }
     });
     res.json({ ok: true, user });
   } catch (err) {

@@ -213,6 +213,347 @@ router.post(
 );
 
 /* ========================
+   GESTIÓN DE USUARIOS (ADMIN)
+   Solo admin puede crear/editar/eliminar usuarios
+   ======================== */
+
+// Listar todos los usuarios
+router.get('/admin/users', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const { rol, q } = req.query;
+    
+    const where = {};
+    
+    // Filtro por rol
+    if (rol && ['admin', 'recepcion', 'departamento', 'estudiante'].includes(rol)) {
+      where.rol = rol;
+    }
+    
+    // Búsqueda por nombre, apellido, email o cédula
+    if (q && typeof q === 'string' && q.trim()) {
+      const qTrim = q.trim();
+      where.OR = [
+        { nombre: { contains: qTrim } },
+        { apellido: { contains: qTrim } },
+        { email: { contains: qTrim } },
+        { cedula: { contains: qTrim } }
+      ];
+    }
+
+    const users = await prisma.user.findMany({
+      where,
+      orderBy: [{ rol: 'asc' }, { nombre: 'asc' }],
+      select: {
+        id: true,
+        nombre: true,
+        apellido: true,
+        cedula: true,
+        email: true,
+        rol: true,
+        facultad: true,
+        departamentoId: true,
+        departamento: {
+          select: {
+            id: true,
+            nombre: true,
+            slug: true
+          }
+        },
+        lastLoginAt: true,
+        failedLoginCount: true
+      }
+    });
+
+    res.json({ ok: true, users });
+  } catch (err) {
+    console.error('GET /admin/users error:', err);
+    res.status(500).json({ ok: false, error: 'Error listando usuarios' });
+  }
+});
+
+// Crear nuevo usuario (admin, recepcion, departamento)
+router.post('/admin/users', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const { nombre, apellido, cedula, email, rol, departamentoId, facultad } = req.body || {};
+
+    // Validaciones básicas
+    if (!nombre || !apellido || !cedula || !email || !rol) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: 'Faltan campos obligatorios: nombre, apellido, cédula, email, rol' 
+      });
+    }
+
+    // Validar roles permitidos (NO se puede crear estudiantes desde aquí)
+    if (!['admin', 'recepcion', 'departamento'].includes(rol)) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: 'Rol inválido. Permitidos: admin, recepcion, departamento' 
+      });
+    }
+
+    // Si es departamento, el departamentoId es OBLIGATORIO
+    if (rol === 'departamento') {
+      if (!departamentoId) {
+        return res.status(400).json({ 
+          ok: false, 
+          error: 'El rol "departamento" requiere asignar un departamentoId' 
+        });
+      }
+      
+      // Verificar que el departamento existe
+      const dept = await prisma.department.findUnique({ 
+        where: { id: Number(departamentoId) } 
+      });
+      
+      if (!dept) {
+        return res.status(400).json({ 
+          ok: false, 
+          error: 'El departamento especificado no existe' 
+        });
+      }
+    }
+
+    // Verificar unicidad de email y cédula
+    const existing = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { cedula: String(cedula).trim() },
+          { email: String(email).toLowerCase().trim() }
+        ]
+      },
+      select: { id: true, cedula: true, email: true }
+    });
+
+    if (existing) {
+      return res.status(409).json({ 
+        ok: false, 
+        error: 'Ya existe un usuario con esa cédula o email' 
+      });
+    }
+
+    // Contraseña temporal
+    const tempPassword = 'Temporal#2025';
+    const passwordHash = await hashOnce(tempPassword);
+
+    // Crear usuario
+    const userData = {
+      nombre: String(nombre).trim(),
+      apellido: String(apellido).trim(),
+      cedula: String(cedula).trim(),
+      email: String(email).toLowerCase().trim(),
+      passwordHash,
+      rol,
+      twoFactorEnabled: false,
+      failedLoginCount: 0
+    };
+
+    // Campos opcionales
+    if (rol === 'departamento' && departamentoId) {
+      userData.departamentoId = Number(departamentoId);
+    }
+    
+    if (facultad) {
+      userData.facultad = String(facultad).trim();
+    }
+
+    const user = await prisma.user.create({
+      data: userData,
+      select: {
+        id: true,
+        nombre: true,
+        apellido: true,
+        cedula: true,
+        email: true,
+        rol: true,
+        facultad: true,
+        departamentoId: true,
+        departamento: {
+          select: {
+            id: true,
+            nombre: true,
+            slug: true
+          }
+        }
+      }
+    });
+
+    res.json({ 
+      ok: true, 
+      user,
+      tempPassword // Se muestra al admin para que se lo comunique al usuario
+    });
+  } catch (err) {
+    console.error('POST /admin/users error:', err);
+    res.status(500).json({ ok: false, error: 'Error creando usuario' });
+  }
+});
+
+// Editar usuario existente
+router.patch('/admin/users/:id', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { nombre, apellido, cedula, email, rol, departamentoId, facultad } = req.body || {};
+
+    // Verificar que el usuario existe
+    const existingUser = await prisma.user.findUnique({ 
+      where: { id },
+      select: { id: true, rol: true, departamentoId: true }
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({ ok: false, error: 'Usuario no encontrado' });
+    }
+
+    // Construir datos de actualización
+    const updateData = {};
+
+    if (nombre) updateData.nombre = String(nombre).trim();
+    if (apellido) updateData.apellido = String(apellido).trim();
+    if (cedula) updateData.cedula = String(cedula).trim();
+    if (email) updateData.email = String(email).toLowerCase().trim();
+    
+    // Actualizar rol si se proporciona
+    if (rol && ['admin', 'recepcion', 'departamento', 'estudiante'].includes(rol)) {
+      updateData.rol = rol;
+      
+      // Si cambia a departamento, validar departamentoId
+      if (rol === 'departamento' && !departamentoId && !existingUser.departamentoId) {
+        return res.status(400).json({ 
+          ok: false, 
+          error: 'El rol "departamento" requiere asignar un departamentoId' 
+        });
+      }
+      
+      // Si cambia de departamento a otro rol, limpiar departamentoId
+      if (rol !== 'departamento') {
+        updateData.departamentoId = null;
+      }
+    }
+
+    // Actualizar departamentoId si se proporciona
+    if (departamentoId !== undefined) {
+      if (departamentoId === null || departamentoId === '') {
+        updateData.departamentoId = null;
+      } else {
+        // Verificar que el departamento existe
+        const dept = await prisma.department.findUnique({ 
+          where: { id: Number(departamentoId) } 
+        });
+        
+        if (!dept) {
+          return res.status(400).json({ 
+            ok: false, 
+            error: 'El departamento especificado no existe' 
+          });
+        }
+        
+        updateData.departamentoId = Number(departamentoId);
+      }
+    }
+
+    // Actualizar facultad si se proporciona
+    if (facultad !== undefined) {
+      updateData.facultad = facultad ? String(facultad).trim() : null;
+    }
+
+    // Verificar unicidad si se actualizan email o cédula
+    if (cedula || email) {
+      const conflict = await prisma.user.findFirst({
+        where: {
+          id: { not: id },
+          OR: [
+            ...(cedula ? [{ cedula: String(cedula).trim() }] : []),
+            ...(email ? [{ email: String(email).toLowerCase().trim() }] : [])
+          ]
+        },
+        select: { id: true }
+      });
+
+      if (conflict) {
+        return res.status(409).json({ 
+          ok: false, 
+          error: 'Ya existe otro usuario con esa cédula o email' 
+        });
+      }
+    }
+
+    // Actualizar usuario
+    const user = await prisma.user.update({
+      where: { id },
+      data: updateData,
+      select: {
+        id: true,
+        nombre: true,
+        apellido: true,
+        cedula: true,
+        email: true,
+        rol: true,
+        facultad: true,
+        departamentoId: true,
+        departamento: {
+          select: {
+            id: true,
+            nombre: true,
+            slug: true
+          }
+        }
+      }
+    });
+
+    res.json({ ok: true, user });
+  } catch (err) {
+    console.error('PATCH /admin/users/:id error:', err);
+    res.status(500).json({ ok: false, error: 'Error actualizando usuario' });
+  }
+});
+
+// Eliminar usuario
+router.delete('/admin/users/:id', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    // Verificar que el usuario existe
+    const user = await prisma.user.findUnique({ 
+      where: { id },
+      select: { id: true, rol: true, nombre: true, apellido: true }
+    });
+
+    if (!user) {
+      return res.status(404).json({ ok: false, error: 'Usuario no encontrado' });
+    }
+
+    // Prevenir que el admin se elimine a sí mismo
+    if (id === req.sessionUser.id) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: 'No puedes eliminar tu propia cuenta' 
+      });
+    }
+
+    // Eliminar usuario (Prisma manejará las cascadas según el schema)
+    await prisma.user.delete({ where: { id } });
+
+    res.json({ 
+      ok: true, 
+      message: `Usuario ${user.nombre} ${user.apellido} eliminado exitosamente` 
+    });
+  } catch (err) {
+    console.error('DELETE /admin/users/:id error:', err);
+    
+    // Manejar error de constraint (si el usuario tiene tickets, mensajes, etc.)
+    if (err.code === 'P2003') {
+      return res.status(400).json({ 
+        ok: false, 
+        error: 'No se puede eliminar este usuario porque tiene registros asociados (tickets, mensajes, etc.)' 
+      });
+    }
+    
+    res.status(500).json({ ok: false, error: 'Error eliminando usuario' });
+  }
+});
+
+/* ========================
    Bandeja Recepción / Maestro
    ======================== */
 router.get('/admin/tickets', requireAuth, requireRole('recepcion', 'maestro'), async (req, res) => {

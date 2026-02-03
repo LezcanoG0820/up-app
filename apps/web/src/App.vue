@@ -42,6 +42,11 @@
           <template v-if="user && (user.rol === 'recepcion' || user.rol === 'departamento' || user.rol === 'maestro')">
             <RouterLink to="/documents">Documentos</RouterLink>
           </template>
+
+          <!-- Gestión de Usuarios (solo admin) -->
+           <template v-if="user && user.rol === 'admin'">
+          <RouterLink to="/users">Usuarios</RouterLink> 
+          </template>
         </nav>
       </div>
 
