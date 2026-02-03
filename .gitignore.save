@@ -1,0 +1,9 @@
+.DS_Store
+.log
+.db
+.db-journal
+apps/api/uploads/
+node_modules/
+.env
+
+
