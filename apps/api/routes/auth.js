@@ -2,6 +2,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
+const { requireAuth } = require('../middlewares/auth');
 const prisma = new PrismaClient();
 
 const router = express.Router();
@@ -180,6 +181,57 @@ router.get('/me', async (req, res) => {
 /* ---------- Logout ---------- */
 router.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ ok: true, message: 'Sesión cerrada' }));
+});
+
+/* ---------- Cambiar contraseña ---------- */
+router.post('/change-password', requireAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ ok: false, error: 'Faltan campos requeridos' });
+    }
+
+    // Validar contraseña nueva
+    if (!isStrongPassword(newPassword)) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Contraseña débil (min 10, mayúscula, minúscula y número)'
+      });
+    }
+
+    // Obtener usuario actual
+    const user = await prisma.user.findUnique({
+      where: { id: req.session.userId },
+      select: { id: true, passwordHash: true }
+    });
+
+    if (!user) {
+      return res.status(404).json({ ok: false, error: 'Usuario no encontrado' });
+    }
+
+    // Verificar contraseña actual
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) {
+      return res.status(400).json({ ok: false, error: 'Contraseña actual incorrecta' });
+    }
+
+    // Hashear nueva contraseña
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+    // Actualizar contraseña
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: newPasswordHash
+      }
+    });
+
+    res.json({ ok: true, message: 'Contraseña actualizada exitosamente' });
+  } catch (err) {
+    console.error('Error en cambio de contraseña:', err);
+    res.status(500).json({ ok: false, error: 'Error en servidor' });
+  }
 });
 
 module.exports = router;

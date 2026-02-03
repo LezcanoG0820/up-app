@@ -38,14 +38,19 @@
             <RouterLink to="/reception/new-ticket">Nuevo ticket (recepción)</RouterLink>
           </template>
 
+          <!-- Departamento -->
+          <template v-if="user?.rol === 'departamento'">
+            <RouterLink to="/inbox/department">Bandeja Departamento</RouterLink>
+          </template>
+
           <!-- Documentos (administrativo/departamento/maestro) -->
           <template v-if="user && (user.rol === 'recepcion' || user.rol === 'departamento' || user.rol === 'maestro')">
             <RouterLink to="/documents">Documentos</RouterLink>
           </template>
 
           <!-- Gestión de Usuarios (solo maestro) -->
-           <template v-if="user && user.rol === 'maestro'">
-          <RouterLink to="/users">Usuarios</RouterLink> 
+          <template v-if="user && user.rol === 'maestro'">
+            <RouterLink to="/users">Usuarios</RouterLink> 
           </template>
         </nav>
       </div>

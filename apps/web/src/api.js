@@ -35,7 +35,8 @@ export const authApi = {
   register: (payload) => request('/auth/register', { method: 'POST', body: payload }),
   login:    (payload) => request('/auth/login',    { method: 'POST', body: payload }),
   me:       () => request('/auth/me'),
-  logout:   () => request('/auth/logout', { method: 'POST' })
+  logout:   () => request('/auth/logout', { method: 'POST' }),
+  changePassword: (payload) => request('/auth/change-password', { method: 'POST', body: payload })
 }
 
 export const ticketsApi = {
@@ -89,6 +90,7 @@ export const documentsApi = {
   },
   view: (id) => request(`/api/documents/${id}/view`, { method: 'PATCH' }),
   downloadUrl: (id) => `/api/documents/${id}/download`,
+  previewUrl: (id) => `/api/documents/${id}/preview`,
   rename: (id, payload) => request(`/api/documents/${id}`, { method: 'PATCH', body: payload }),
   remove: (id) => request(`/api/documents/${id}`, { method: 'DELETE' })
 }

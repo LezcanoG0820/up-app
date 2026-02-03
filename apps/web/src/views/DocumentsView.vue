@@ -119,21 +119,27 @@
         <button class="btn-secondary" @click="closeViewer">Cerrar vista previa</button>
       </div>
 
-      <div v-if="isExcel(viewer.doc)" class="grid-gap">
-        <p class="text-muted">Vista previa de Excel (solo lectura). Para edición completa, descarga el archivo.</p>
-        <div v-html="excelHtml" style="overflow: auto;"></div>
+      <!-- Preview de Excel (igual que PDF) -->
+      <div v-if="isExcel(viewer.doc)" style="height: 70vh;">
+        <p class="text-muted" style="margin-bottom: 0.5rem;">Vista previa de Excel (solo lectura). Para edición completa, descarga el archivo.</p>
+        <div 
+          v-html="excelHtml" 
+          style="width: 100%; height: calc(100% - 30px); overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; background: white;"
+        ></div>
       </div>
 
+      <!-- Preview de PDF -->
       <div v-else-if="isPDF(viewer.doc)" style="height: 70vh;">
         <iframe
           :src="previewUrl(viewer.doc.id)"
           type="application/pdf"
           style="width: 100%; height: 100%; border: 1px solid var(--border); border-radius: var(--radius);"
         >
-          <p>Tu navegador no soporta vista previa de PDFs. <a :href="downloadUrl(viewer.doc.id)" target="_blank">Descargar PDF</a></p>
+          Tu navegador no soporta vista previa de PDFs. <a :href="downloadUrl(viewer.doc.id)" target="_blank">Descargar PDF</a>
         </iframe>
       </div>
 
+      <!-- Preview de imágenes -->
       <div v-else-if="isImage(viewer.doc)">
         <img
           :src="previewUrl(viewer.doc.id)"
@@ -142,6 +148,7 @@
         />
       </div>
 
+      <!-- Sin preview disponible -->
       <div v-else>
         <p>No hay vista previa disponible para este tipo de archivo. Puedes descargarlo usando el botón "Descargar".</p>
       </div>
