@@ -1,70 +1,42 @@
 <template>
-  <main class="grid-gap" style="max-width:1000px; margin:auto;">
-    <header class="grid-gap">
-      <h1 style="margin:0;">Nuevo ticket (Recepción)</h1>
-      <p class="text-muted" style="margin:0;">
-        Crea o selecciona un estudiante y genera el ticket en su nombre.
-      </p>
-    </header>
+  <main style="padding:2rem; max-width:920px; margin:auto;">
+    <h1>Nuevo ticket (Recepción)</h1>
+    <p class="text-muted">Crea o selecciona un estudiante y genera el ticket en su nombre.</p>
 
-    <!-- Paso 1: Buscar / Crear estudiante -->
-    <section class="grid-gap">
-      <!-- 1) Buscar estudiante -->
+    <!-- Paso 1: Buscar estudiante -->
+    <section class="grid-gap" style="margin-top:1.5rem;">
       <fieldset>
         <legend><strong>1) Buscar estudiante</strong></legend>
-        <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;">
+        <div class="grid-gap">
           <input
             v-model.trim="q"
             placeholder="Cédula, nombre, apellido o email"
             @keyup.enter="search"
-            style="min-width:260px;"
           />
-          <button type="button" @click="search" :disabled="searching">
-            {{ searching ? 'Buscando…' : 'Buscar' }}
-          </button>
-          <button type="button" @click="clearSearch" :disabled="searching">
-            Limpiar
-          </button>
-        </div>
-        <p v-if="searchError" class="text-danger" style="margin-top:.25rem;">
-          {{ searchError }}
-        </p>
 
-        <div v-if="results.length" class="card" style="margin-top:.75rem;">
-          <p style="margin:0 0 .5rem 0;"><strong>Resultados:</strong></p>
-          <table>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Cédula</th>
-                <th>Email</th>
-                <th>Facultad</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="r in results" :key="r.id">
-                <td>{{ r.nombre }} {{ r.apellido }}</td>
-                <td>{{ r.cedula }}</td>
-                <td>{{ r.email }}</td>
-                <td>{{ r.facultad || '—' }}</td>
-                <td>
-                  <button type="button" @click="selectStudent(r)">
-                    Seleccionar
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+          <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+            <button type="button" @click="search" :disabled="searching">
+              {{ searching ? 'Buscando…' : 'Buscar' }}
+            </button>
+            <button type="button" class="btn-secondary" @click="clearSearch">
+              Limpiar
+            </button>
+          </div>
 
-        <p
-          v-else-if="q && !searching && !searchError"
-          class="text-muted"
-          style="margin-top:.5rem;"
-        >
-          Sin resultados.
-        </p>
+          <p class="text-danger" v-if="searchError">{{ searchError }}</p>
+
+          <div v-if="results.length" style="margin-top:.75rem;">
+            <p style="margin:0 0 .5rem 0;"><strong>Resultados:</strong></p>
+            <div
+              v-for="s in results"
+              :key="s.id"
+              style="padding:.5rem; border:1px solid var(--border); border-radius:8px; cursor:pointer; margin-bottom:.5rem; background:var(--surface);"
+              @click="selectStudent(s)"
+            >
+              {{ s.nombre }} {{ s.apellido }} ({{ s.cedula }}) – {{ s.email }}
+            </div>
+          </div>
+        </div>
       </fieldset>
 
       <!-- 2) Crear nuevo estudiante -->
@@ -103,8 +75,30 @@
       </fieldset>
     </section>
 
+    <!-- INDICADOR VISUAL: Estudiante seleccionado -->
+    <section
+      v-if="student"
+      style="margin-top:1.5rem; padding:1rem; border:2px solid var(--success); border-radius:12px; background:rgba(22, 163, 74, 0.05);"
+    >
+      <div style="display:flex; align-items:center; gap:.75rem;">
+        <span style="font-size:1.5rem;">✅</span>
+        <div>
+          <p style="margin:0; font-weight:700; color:var(--success);">
+            Estudiante Seleccionado
+          </p>
+          <p style="margin:.25rem 0 0 0; font-size:.95rem;">
+            <strong>{{ student.nombre }} {{ student.apellido }}</strong>
+            <br>
+            Cédula: {{ student.cedula }} | Email: {{ student.email }}
+            <br>
+            <span v-if="student.facultad" style="color:var(--muted);">{{ student.facultad }}</span>
+          </p>
+        </div>
+      </div>
+    </section>
+
     <!-- Paso 3: Datos del ticket -->
-    <section class="grid-gap" v-if="student">
+    <section class="grid-gap" v-if="student" style="margin-top:1.5rem;">
       <fieldset>
         <legend><strong>3) Datos del ticket</strong></legend>
 
@@ -127,63 +121,68 @@
             </p>
           </div>
 
-          <!-- Asunto con presets -->
+          <!-- Asunto -->
           <div class="grid-gap">
             <label style="font-weight:500;">Asunto</label>
-            <select
-              v-model="quickSubject"
-              @change="applyQuickSubject"
-              style="margin-bottom:.25rem;"
-            >
+
+            <select v-model="quickSubject" @change="applyQuickSubject">
               <option value="">Seleccione asunto rápido (opcional)…</option>
               <option value="error_pago">Error en pago / matrícula</option>
               <option value="pago_pendiente">Problema con pago pendiente</option>
-              <option value="solicitud_creditos">
-                Solicitud de créditos / carga académica
-              </option>
-              <option value="solicitud_constancia">
-                Constancia de estudios / documentos
-              </option>
+              <option value="solicitud_creditos">Solicitud de créditos / carga académica</option>
+              <option value="solicitud_constancia">Constancia de estudios / documentos</option>
               <option value="consulta_general">Consulta general</option>
             </select>
 
-            <input
-              v-model.trim="form.asunto"
-              placeholder="Asunto"
-            />
+            <input v-model.trim="form.asunto" placeholder="Asunto" />
           </div>
 
           <!-- Descripción -->
-          <textarea
-            v-model.trim="form.descripcion"
-            rows="3"
-            placeholder="Descripción breve de la consulta"
-          ></textarea>
+          <div class="grid-gap">
+            <label style="font-weight:500;">Descripción breve de la consulta</label>
+            <textarea
+              v-model="form.descripcion"
+              rows="4"
+              placeholder="Descripción breve de la consulta"
+            ></textarea>
+          </div>
 
-          <textarea
-            v-model.trim="form.detalleAdicional"
-            rows="3"
-            placeholder="Detalle adicional de la consulta (opcional)"
-          ></textarea>
+          <!-- Detalle adicional -->
+          <div class="grid-gap">
+            <label style="font-weight:500;">Detalle adicional de la consulta (opcional)</label>
+            <textarea
+              v-model="form.detalleAdicional"
+              rows="3"
+              placeholder="Detalle adicional de la consulta (opcional)"
+            ></textarea>
+          </div>
 
-          <div style="display:flex; gap:.75rem; flex-wrap:wrap;">
-            <input
-              v-model.trim="form.cru"
-              placeholder="CRU/Extensión (opcional)"
-              style="flex:1 1 220px;"
-            />
+          <!-- CRU/Extensión - DROPDOWN -->
+          <div class="grid-gap">
+            <label style="font-weight:500;">CRU/Extensión (opcional)</label>
+            <select v-model="form.cru">
+              <option value="">Seleccione CRU/Extensión (opcional)</option>
+              <option
+                v-for="c in centrosRegionales"
+                :key="c.slug"
+                :value="c.nombre"
+              >
+                {{ c.nombre }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Categoría de consulta -->
+          <div class="grid-gap">
+            <label style="font-weight:500;">Categoría de consulta (opcional)</label>
             <input
               v-model.trim="form.categoriaConsulta"
-              placeholder="Detalles extra (opcional)"
-              style="flex:1 1 220px;"
+              placeholder="Ej: Matrícula, Pago, Resultados"
             />
           </div>
 
-          <button
-            type="button"
-            @click="createTicket"
-            :disabled="creatingTicket"
-          >
+          <!-- Crear ticket -->
+          <button type="button" @click="createTicket" :disabled="creatingTicket">
             {{ creatingTicket ? 'Creando ticket…' : 'Crear ticket' }}
           </button>
 
@@ -222,10 +221,11 @@ const createMsg = ref('')
 const createErr = ref('')
 
 /* -----------------------
-   Facultades / departamentos
+   Facultades / departamentos / CRUs
    ----------------------- */
 const facultades = ref([])
 const departments = ref([])
+const centrosRegionales = ref([])
 
 /* -----------------------
    Alumno seleccionado
@@ -262,7 +262,6 @@ async function search () {
   searching.value = true
   try {
     const j = await studentsApi.search(q.value)
-    // RESPETA el contrato original: { ok, students }
     results.value = j.students || []
   } catch (e) {
     console.error(e)
@@ -301,7 +300,6 @@ async function createStudent () {
 
   creating.value = true
   try {
-    // RESPETA el contrato original: body = newS, respuesta { ok, student, tempPassword? }
     const j = await studentsApi.create(newS.value)
     student.value = j.student
     createMsg.value = 'Estudiante creado y seleccionado'
@@ -400,6 +398,9 @@ onMounted(async () => {
 
     const jFac = await manageApi.getFacultades()
     facultades.value = Array.isArray(jFac?.facultades) ? jFac.facultades : []
+
+    const jCRU = await manageApi.getCentrosRegionales()
+    centrosRegionales.value = Array.isArray(jCRU?.centros) ? jCRU.centros : []
   } catch (e) {
     console.error('Error cargando datos iniciales:', e)
   }

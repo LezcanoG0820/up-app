@@ -58,7 +58,8 @@ export const manageApi = {
   complete:      (id) => request(`/api/tickets/${id}/complete`, { method: 'POST' }),
   departments:   () => request('/api/departments'),
   getCRUs:       () => request('/api/crus'),
-  getFacultades: () => request('/api/facultades')
+  getFacultades: () => request('/api/facultades'),
+  getCentrosRegionales: () => request('/api/centros-regionales')
 }
 
 // ---- Documentos ----

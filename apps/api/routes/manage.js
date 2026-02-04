@@ -84,6 +84,11 @@ const FACULTADES = [
 // CRUs para formulario de estudiantes (público)
 router.get('/crus', async (_req, res) => res.json({ ok: true, crus: CRUS }));
 
+// Endpoint para obtener CRUs
+router.get('/centros-regionales', (_req, res) => {
+  res.json({ ok: true, centros: CRUS });
+});
+
 // Facultades para registro/visualización (público)
 router.get('/facultades', async (_req, res) => res.json({ ok: true, facultades: FACULTADES }));
 
