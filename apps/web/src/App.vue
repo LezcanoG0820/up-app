@@ -55,11 +55,8 @@
         </nav>
       </div>
 
-      <!-- Bloque derecho: notificaciones, tema, usuario -->
+      <!-- Bloque derecho: tema, usuario -->
       <div style="display:flex; align-items:center; gap:.5rem;">
-        <!-- Campana de notificaciones (no para estudiantes) -->
-        <NotificationsBell v-if="user && user.rol !== 'estudiante'" />
-
         <!-- Selector Claro/Oscuro -->
         <button
           class="btn-secondary"
@@ -197,7 +194,6 @@ import { session } from './store/session'
 import { authApi } from './api'
 import { useRouter } from 'vue-router'
 import { themeName, toggleTheme } from './utils/theme'
-import NotificationsBell from './components/NotificationsBell.vue'
 import upLogo from './assets/UP-logo.png'
 
 const router = useRouter()
