@@ -59,7 +59,7 @@ export const manageApi = {
   departments:   () => request('/api/departments'),
   getCRUs:       () => request('/api/crus'),
   getFacultades: () => request('/api/facultades'),
-  getCentrosRegionales: () => request('/api/centros-regionales')
+  getCentrosRegionales: () => request('/api/centros-regionales') //recien
 }
 
 // ---- Documentos ----
