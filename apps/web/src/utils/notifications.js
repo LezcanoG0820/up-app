@@ -49,9 +49,6 @@ async function listNotificationsForUser (prisma, user, { limit = 30 } = {}) {
         actor: {
           select: { id: true, nombre: true, apellido: true, rol: true, email: true }
         },
-        ticket: {
-          select: { id: true, token: true, asunto: true }
-        },
         reads: {
           where: { userId: user.id },
           select: { userId: true, readAt: true }
@@ -64,7 +61,6 @@ async function listNotificationsForUser (prisma, user, { limit = 30 } = {}) {
       type: n.type,
       message: n.message,
       ticketId: n.ticketId,
-      ticket: n.ticket,
       actor: n.actor,
       departmentId: n.departmentId,
       createdAt: n.createdAt,

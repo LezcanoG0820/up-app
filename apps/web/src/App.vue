@@ -76,6 +76,13 @@
           <span style="margin-left:.25rem; margin-right:.5rem;">
             {{ user.nombre }} ({{ user.rol }})
           </span>
+          <RouterLink 
+            to="/change-password" 
+            class="btn-secondary"
+            style="padding:.55rem .9rem; text-decoration:none;"
+          >
+            🔑 Cambiar Contraseña
+          </RouterLink>
           <button @click="logout">Salir</button>
         </template>
         <template v-else>

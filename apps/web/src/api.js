@@ -36,7 +36,8 @@ export const authApi = {
   login:    (payload) => request('/auth/login',    { method: 'POST', body: payload }),
   me:       () => request('/auth/me'),
   logout:   () => request('/auth/logout', { method: 'POST' }),
-  changePassword: (payload) => request('/auth/change-password', { method: 'POST', body: payload })
+  changePassword: (payload) => request('/auth/change-password', { method: 'POST', body: payload }),
+  changePassword: (body) => request('/auth/change-password', { method: 'POST', body })
 }
 
 export const ticketsApi = {

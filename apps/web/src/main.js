@@ -57,6 +57,14 @@ const routes = [
     component: UserManagementView,
     meta: { requiresAuth: true, roles: ['maestro'] }
   },
+
+  // Cambiar contraseña
+{ 
+  path: '/change-password', 
+  name: 'change-password', 
+  component: ChangePasswordView, 
+  meta: { requiresAuth: true } 
+},
   // 404 simple
   { path: '/:pathMatch(.*)*', redirect: '/' }
 ]
@@ -79,6 +87,11 @@ router.beforeEach(async (to) => {
   if (to.meta?.requiresAuth) {
     if (!session.user) {
       return { name: 'login', query: { redirect: to.fullPath } }
+    }
+
+    // ⬇️ NUEVO: Forzar cambio de contraseña
+    if (session.user.mustChangePassword && to.name !== 'change-password') {
+      return { name: 'change-password', query: { forced: 'true' } }
     }
 
     const allowed = to.meta.roles

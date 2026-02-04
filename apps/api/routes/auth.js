@@ -168,7 +168,8 @@ router.get('/me', async (req, res) => {
         rol: true, 
         cedula: true, 
         facultad: true,
-        departamentoId: true
+        departamentoId: true,
+        mustChangePassword: true
       }
     });
     res.json({ ok: true, user });
@@ -223,7 +224,8 @@ router.post('/change-password', requireAuth, async (req, res) => {
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        passwordHash: newPasswordHash
+        passwordHash: newPasswordHash,
+        mustChangePassword: false
       }
     });
 

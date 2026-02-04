@@ -345,7 +345,8 @@ router.post('/admin/users', requireAuth, requireRole('maestro'), async (req, res
       passwordHash,
       rol,
       twoFactorEnabled: false,
-      failedLoginCount: 0
+      failedLoginCount: 0,
+      mustChangePassword: true
     };
 
     // Campos opcionales

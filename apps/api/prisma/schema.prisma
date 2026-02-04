@@ -43,6 +43,7 @@ model User {
   failedLoginCount Int       @default(0)
   lockedUntil      DateTime?
   lastLoginAt      DateTime?
+  mustChangePassword Boolean @default(false)
 
   ticketsEstudiante Ticket[]        @relation("TicketsEstudiante")
   messages          TicketMessage[]
