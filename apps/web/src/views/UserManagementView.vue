@@ -12,7 +12,7 @@
         />
         <select v-model="roleFilter" @change="loadUsers">
           <option value="">Todos los roles</option>
-          <option value="admin">Admin</option>
+          <option value="maestro">Maestro</option>
           <option value="recepcion">Recepción</option>
           <option value="departamento">Departamento</option>
           <option value="estudiante">Estudiante</option>
@@ -89,7 +89,7 @@
           
           <select v-model="newUser.rol" required>
             <option value="">Seleccione un rol</option>
-            <option value="admin">Admin</option>
+            <option value="maestro">Maestro</option>
             <option value="recepcion">Recepción</option>
             <option value="departamento">Departamento</option>
           </select>
@@ -142,7 +142,7 @@
           <input v-model.trim="editingUser.email" placeholder="Email" type="email" required />
           
           <select v-model="editingUser.rol" required>
-            <option value="admin">Admin</option>
+            <option value="maestro">Maestro</option>
             <option value="recepcion">Recepción</option>
             <option value="departamento">Departamento</option>
             <option value="estudiante">Estudiante</option>
@@ -386,7 +386,7 @@ function closeEditModal() {
 // Helpers de UI
 function getRoleLabel(rol) {
   const labels = {
-    admin: 'Admin',
+    maestro: 'Maestro',
     recepcion: 'Recepción',
     departamento: 'Departamento',
     estudiante: 'Estudiante'

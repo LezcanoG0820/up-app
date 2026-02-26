@@ -11,40 +11,76 @@
 
     <form @submit.prevent="submit">
       <div class="grid-gap">
+        <!-- Contraseña Actual -->
         <div>
           <label for="current">Contraseña Actual</label>
-          <input 
-            id="current"
-            type="password" 
-            v-model="currentPassword" 
-            required
-            placeholder="Tu contraseña actual"
-          />
+          <div style="position: relative;">
+            <input 
+              id="current"
+              :type="showCurrent ? 'text' : 'password'"
+              v-model="currentPassword" 
+              required
+              placeholder="Tu contraseña actual"
+              style="padding-right: 3rem;"
+            />
+            <button
+              type="button"
+              @click="showCurrent = !showCurrent"
+              style="position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; font-size: 1.2rem; padding: 0.25rem 0.5rem;"
+              :aria-label="showCurrent ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            >
+              {{ showCurrent ? '🙈' : '👁️' }}
+            </button>
+          </div>
         </div>
 
+        <!-- Nueva Contraseña -->
         <div>
           <label for="new">Nueva Contraseña</label>
-          <input 
-            id="new"
-            type="password" 
-            v-model="newPassword" 
-            required
-            placeholder="Mínimo 10 caracteres"
-          />
+          <div style="position: relative;">
+            <input 
+              id="new"
+              :type="showNew ? 'text' : 'password'"
+              v-model="newPassword" 
+              required
+              placeholder="Mínimo 10 caracteres"
+              style="padding-right: 3rem;"
+            />
+            <button
+              type="button"
+              @click="showNew = !showNew"
+              style="position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; font-size: 1.2rem; padding: 0.25rem 0.5rem;"
+              :aria-label="showNew ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            >
+              {{ showNew ? '🙈' : '👁️' }}
+            </button>
+          </div>
           <small style="color: var(--muted);">
             Debe tener al menos 10 caracteres, una mayúscula, una minúscula y un número
           </small>
         </div>
 
+        <!-- Confirmar Nueva Contraseña -->
         <div>
           <label for="confirm">Confirmar Nueva Contraseña</label>
-          <input 
-            id="confirm"
-            type="password" 
-            v-model="confirmPassword" 
-            required
-            placeholder="Repite la contraseña"
-          />
+          <div style="position: relative;">
+            <input 
+              id="confirm"
+              :type="showConfirm ? 'text' : 'password'"
+              v-model="confirmPassword" 
+              required
+              placeholder="Repite la contraseña"
+              style="padding-right: 3rem;"
+            />
+            <button
+              type="button"
+              @click="showConfirm = !showConfirm"
+              style="position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; font-size: 1.2rem; padding: 0.25rem 0.5rem;"
+              :aria-label="showConfirm ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            >
+              {{ showConfirm ? '🙈' : '👁️' }}
+            </button>
+          </div>
         </div>
 
         <p v-if="error" style="color: var(--danger); margin: 0;">{{ error }}</p>
@@ -83,6 +119,11 @@ const loading = ref(false)
 const error = ref('')
 const success = ref('')
 const forced = ref(false)
+
+// Estados para mostrar/ocultar contraseñas
+const showCurrent = ref(false)
+const showNew = ref(false)
+const showConfirm = ref(false)
 
 onMounted(() => {
   // Si viene del guard, es obligatorio
