@@ -108,6 +108,14 @@
 
           <input v-model.trim="newUser.facultad" placeholder="Facultad (opcional)" />
 
+          <!-- ⬅️ NUEVO: Dropdown CRU -->
+          <select v-model="newUser.cru">
+            <option value="">CRU/Extensión (opcional)</option>
+            <option v-for="c in centrosRegionales" :key="c.slug" :value="c.nombre">
+              {{ c.nombre }}
+            </option>
+          </select>
+
           <p v-if="createError" style="color: crimson;">{{ createError }}</p>
           
           <!-- Mostrar contraseña temporal después de crear -->
@@ -162,6 +170,14 @@
 
           <input v-model.trim="editingUser.facultad" placeholder="Facultad (opcional)" />
 
+          <!-- ⬅️ NUEVO: Dropdown CRU -->
+          <select v-model="editingUser.cru">
+            <option value="">CRU/Extensión (opcional)</option>
+            <option v-for="c in centrosRegionales" :key="c.slug" :value="c.nombre">
+              {{ c.nombre }}
+            </option>
+          </select>
+
           <p v-if="editError" style="color: crimson;">{{ editError }}</p>
 
           <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
@@ -192,6 +208,9 @@ const roleFilter = ref('')
 // Departamentos
 const departments = ref([])
 
+// ⬅️ NUEVO: Centros Regionales
+const centrosRegionales = ref([])
+
 // Modal crear
 const showCreateModal = ref(false)
 const creating = ref(false)
@@ -204,7 +223,8 @@ const newUser = ref({
   email: '',
   rol: '',
   departamentoId: '',
-  facultad: ''
+  facultad: '',
+  cru: ''  // ⬅️ NUEVO
 })
 
 // Modal editar
@@ -219,7 +239,8 @@ const editingUser = ref({
   email: '',
   rol: '',
   departamentoId: '',
-  facultad: ''
+  facultad: '',
+  cru: ''  // ⬅️ NUEVO
 })
 
 // Cargar usuarios
@@ -251,6 +272,16 @@ async function loadDepartments() {
   }
 }
 
+// ⬅️ NUEVO: Cargar centros regionales
+async function loadCentrosRegionales() {
+  try {
+    const { centros } = await manageApi.getCentrosRegionales()
+    centrosRegionales.value = centros || []
+  } catch (e) {
+    console.error('Error cargando centros regionales:', e)
+  }
+}
+
 // Crear usuario
 async function createUser() {
   creating.value = true
@@ -265,7 +296,8 @@ async function createUser() {
       email: newUser.value.email,
       rol: newUser.value.rol,
       ...(newUser.value.departamentoId && { departamentoId: Number(newUser.value.departamentoId) }),
-      ...(newUser.value.facultad && { facultad: newUser.value.facultad })
+      ...(newUser.value.facultad && { facultad: newUser.value.facultad }),
+      ...(newUser.value.cru && { cru: newUser.value.cru })  // ⬅️ NUEVO
     }
 
     const response = await usersApi.create(payload)
@@ -284,7 +316,8 @@ async function createUser() {
       email: '',
       rol: '',
       departamentoId: '',
-      facultad: ''
+      facultad: '',
+      cru: ''  // ⬅️ NUEVO
     }
     
     // No cerrar el modal inmediatamente para que vean la contraseña
@@ -305,7 +338,8 @@ function openEditModal(user) {
     email: user.email,
     rol: user.rol,
     departamentoId: user.departamentoId || '',
-    facultad: user.facultad || ''
+    facultad: user.facultad || '',
+    cru: user.cru || ''  // ⬅️ NUEVO
   }
   showEditModal.value = true
 }
@@ -325,7 +359,8 @@ async function updateUser() {
       departamentoId: editingUser.value.rol === 'departamento' 
         ? Number(editingUser.value.departamentoId) 
         : null,
-      facultad: editingUser.value.facultad || null
+      facultad: editingUser.value.facultad || null,
+      cru: editingUser.value.cru || null  // ⬅️ NUEVO
     }
 
     await usersApi.update(editingUser.value.id, payload)
@@ -364,7 +399,8 @@ function closeCreateModal() {
     email: '',
     rol: '',
     departamentoId: '',
-    facultad: ''
+    facultad: '',
+    cru: ''  // ⬅️ NUEVO
   }
 }
 
@@ -379,7 +415,8 @@ function closeEditModal() {
     email: '',
     rol: '',
     departamentoId: '',
-    facultad: ''
+    facultad: '',
+    cru: ''  // ⬅️ NUEVO
   }
 }
 
@@ -396,7 +433,7 @@ function getRoleLabel(rol) {
 
 function getRoleBadgeStyle(rol) {
   const styles = {
-    admin: 'background-color: #dc3545; color: white;',
+    maestro: 'background-color: #dc3545; color: white;',
     recepcion: 'background-color: #17a2b8; color: white;',
     departamento: 'background-color: #ffc107; color: black;',
     estudiante: 'background-color: #28a745; color: white;'
@@ -408,5 +445,6 @@ function getRoleBadgeStyle(rol) {
 onMounted(() => {
   loadUsers()
   loadDepartments()
+  loadCentrosRegionales()  // ⬅️ NUEVO
 })
 </script>

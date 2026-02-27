@@ -26,10 +26,19 @@ router.get(
             { nombre:   { contains: q } },
             { apellido: { contains: q } },
             { email:    { contains: q } },
+          
           ],
         },
         orderBy: [{ nombre: 'asc' }, { apellido: 'asc' }],
-        select: { id: true, nombre: true, apellido: true, cedula: true, email: true, facultad: true },
+        select: { 
+          id: true, 
+          nombre: true, 
+          apellido: true, 
+          cedula: true, 
+          email: true, 
+          facultad: true,
+          cru: true   
+        },
       })
 
       res.json({ ok: true, students })
@@ -47,12 +56,13 @@ router.post(
   requireRole('recepcion', 'maestro'),
   async (req, res) => {
     try {
-      const { nombre, apellido, cedula, email, facultad } = req.body || {}
+      const { nombre, apellido, cedula, email, facultad, cru } = req.body || {}  
+      
       if (!nombre || !apellido || !cedula || !email) {
         return res.status(400).json({ ok: false, error: 'Faltan campos: nombre, apellido, cédula, email' })
       }
 
-      // contraseña temporal simple (no se muestra al alumno por ahora)
+      // contraseña temporal simple
       const tempPassword = `Temp-${String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0')}`
       const passwordHash = await bcrypt.hash(tempPassword, 10)
 
@@ -65,14 +75,22 @@ router.post(
           passwordHash,
           rol: 'estudiante',
           facultad: facultad ? String(facultad) : null,
+          cru: cru ? String(cru) : null  // ⬅️ AGREGAR CRU
         },
-        select: { id: true, nombre: true, apellido: true, cedula: true, email: true, facultad: true }
+        select: { 
+          id: true, 
+          nombre: true, 
+          apellido: true, 
+          cedula: true, 
+          email: true, 
+          facultad: true,
+          cru: true  // 
+        }
       })
 
       res.json({ ok: true, student, tempPassword })
     } catch (err) {
       if (err?.code === 'P2002') {
-        // unique constraint (cedula/email)
         return res.status(409).json({ ok: false, error: 'Cédula o email ya registrados' })
       }
       console.error('POST /students error:', err)

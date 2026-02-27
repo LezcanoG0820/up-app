@@ -10,7 +10,7 @@
         <div class="grid-gap">
           <input
             v-model.trim="q"
-            placeholder="Cédula, nombre, apellido o email"
+            placeholder="Cédula, nombre, apellido, email o CRU"
             @keyup.enter="search"
           />
 
@@ -34,6 +34,7 @@
               @click="selectStudent(s)"
             >
               {{ s.nombre }} {{ s.apellido }} ({{ s.cedula }}) – {{ s.email }}
+              <span v-if="s.cru" style="color:var(--muted); font-size:.85rem;"> | {{ s.cru }}</span>
             </div>
           </div>
         </div>
@@ -61,6 +62,18 @@
               :value="f.nombre"
             >
               {{ f.nombre }}
+            </option>
+          </select>
+
+          <!-- NUEVO: Dropdown CRU en creación de estudiante -->
+          <select v-model="newS.cru">
+            <option value="">Seleccione CRU/Extensión (opcional)</option>
+            <option
+              v-for="c in centrosRegionales"
+              :key="c.slug"
+              :value="c.nombre"
+            >
+              {{ c.nombre }}
             </option>
           </select>
 
@@ -92,6 +105,7 @@
             Cédula: {{ student.cedula }} | Email: {{ student.email }}
             <br>
             <span v-if="student.facultad" style="color:var(--muted);">{{ student.facultad }}</span>
+            <span v-if="student.cru" style="color:var(--muted);"> | {{ student.cru }}</span>
           </p>
         </div>
       </div>
@@ -157,20 +171,7 @@
             ></textarea>
           </div>
 
-          <!-- CRU/Extensión - DROPDOWN -->
-          <div class="grid-gap">
-            <label style="font-weight:500;">CRU/Extensión (opcional)</label>
-            <select v-model="form.cru">
-              <option value="">Seleccione CRU/Extensión (opcional)</option>
-              <option
-                v-for="c in centrosRegionales"
-                :key="c.slug"
-                :value="c.nombre"
-              >
-                {{ c.nombre }}
-              </option>
-            </select>
-          </div>
+          <!-- CRU ELIMINADO - ahora está asociado al estudiante -->
 
           <!-- Categoría de consulta -->
           <div class="grid-gap">
@@ -214,7 +215,8 @@ const newS = ref({
   apellido: '',
   cedula: '',
   email: '',
-  facultad: ''
+  facultad: '',
+  cru: ''  // ⬅️ AGREGAR CRU
 })
 const creating = ref(false)
 const createMsg = ref('')
@@ -241,7 +243,7 @@ const form = ref({
   asunto: '',
   descripcion: '',
   detalleAdicional: '',
-  cru: '',
+  // cru: '',  ❌ ELIMINADO - ahora está en el estudiante
   categoriaConsulta: ''
 })
 const quickSubject = ref('')
@@ -300,10 +302,10 @@ async function createStudent () {
 
   creating.value = true
   try {
-    const j = await studentsApi.create(newS.value)
+    const j = await studentsApi.create(newS.value)  // ⬅️ Ya incluye CRU
     student.value = j.student
     createMsg.value = 'Estudiante creado y seleccionado'
-    newS.value = { nombre: '', apellido: '', cedula: '', email: '', facultad: '' }
+    newS.value = { nombre: '', apellido: '', cedula: '', email: '', facultad: '', cru: '' }  // ⬅️ RESETEAR CRU
   } catch (e) {
     console.error(e)
     createErr.value = String(e?.message || e)
@@ -364,7 +366,7 @@ async function createTicket () {
       departmentId: form.value.departmentId,
       asunto: form.value.asunto,
       descripcion: descripcionFinal,
-      cru: form.value.cru || null,
+      // cru: form.value.cru || null,  ❌ ELIMINADO
       categoriaConsulta: form.value.categoriaConsulta || null
     }
 
@@ -376,7 +378,7 @@ async function createTicket () {
       form.value.asunto = ''
       form.value.descripcion = ''
       form.value.detalleAdicional = ''
-      form.value.cru = ''
+      // form.value.cru = ''  ❌ ELIMINADO
       form.value.categoriaConsulta = ''
       quickSubject.value = ''
     } else {

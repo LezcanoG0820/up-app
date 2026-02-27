@@ -43,7 +43,7 @@ async function addTicketLog ({ ticketId, action, byUserId, details }) {
 
 router.post('/tickets', requireAuth, requireRole('estudiante'), async (req, res) => {
   try {
-    const { tipoId, asunto, descripcion, cru, categoriaConsulta, categoriaQueja } = req.body || {}
+    const { tipoId, asunto, descripcion, categoriaConsulta, categoriaQueja } = req.body || {}  // ❌ ELIMINADO: cru
 
     if (!tipoId || !asunto || !descripcion) {
       return res.status(400).json({ ok: false, error: 'Datos incompletos' })
@@ -68,7 +68,7 @@ router.post('/tickets', requireAuth, requireRole('estudiante'), async (req, res)
         tipoId: tipo.id,
         asunto: String(asunto),
         descripcion: String(descripcion),
-        cru: cru ?? null,
+        // cru: cru ?? null,  ❌ ELIMINADO
         categoriaQueja: category
       }
     })
@@ -112,7 +112,7 @@ router.post(
         departmentId,
         asunto,
         descripcion,
-        cru,
+        // cru,  ❌ ELIMINADO
         categoriaConsulta,
         categoriaQueja
       } = req.body || {}
@@ -182,7 +182,7 @@ router.post(
           tipoId: tipo.id,
           asunto: String(asunto),
           descripcion: String(descripcion),
-          cru: cru ?? null,
+          // cru: cru ?? null,  ❌ ELIMINADO
           categoriaQueja: category
         },
         include: {
@@ -227,7 +227,7 @@ router.get('/my/tickets', requireAuth, requireRole('estudiante'), async (req, re
       orderBy: { createdAt: 'desc' },
       include: {
         tipo: { select: { id: true, nombre: true } },
-        departamentoActual: { select: { id: true, nombre: true } }
+        departamentoActual: { select: { id: true, nombre: true, slug: true } }
       }
     })
 
@@ -235,36 +235,30 @@ router.get('/my/tickets', requireAuth, requireRole('estudiante'), async (req, re
     res.json({ ok: true, tickets })
   } catch (err) {
     console.error('GET /my/tickets error:', err)
-    res.status(500).json({ ok: false, error: 'Error listando tickets del estudiante' })
+    res.status(500).json({ ok: false, error: 'Error listando tickets' })
   }
 })
+
+/* ========================
+   Detalle de ticket (estudiante)
+   ======================== */
 
 router.get('/my/tickets/:id', requireAuth, requireRole('estudiante'), async (req, res) => {
   try {
     const id = Number(req.params.id)
+
     const ticket = await prisma.ticket.findFirst({
-      where: { id, estudianteId: req.sessionUser.id },
+      where: {
+        id,
+        estudianteId: req.sessionUser.id
+      },
       include: {
-        estudiante: true,
         tipo: true,
         departamentoActual: true,
         messages: {
           orderBy: { createdAt: 'asc' },
           include: {
             autor: {
-              select: {
-                id: true,
-                nombre: true,
-                apellido: true,
-                rol: true
-              }
-            }
-          }
-        },
-        auditLogs: {
-          orderBy: { createdAt: 'asc' },
-          include: {
-            actor: {
               select: {
                 id: true,
                 nombre: true,
@@ -289,41 +283,7 @@ router.get('/my/tickets/:id', requireAuth, requireRole('estudiante'), async (req
 })
 
 /* ========================
-   Listado para maestro
-   ======================== */
-
-router.get('/admin/tickets', requireAuth, requireRole('maestro'), async (req, res) => {
-  try {
-    const { q } = req.query || {}
-    const where = {}
-
-    if (q) {
-      where.OR = [
-        { token: { contains: String(q) } },
-        { estudiante: { cedula: { contains: String(q) } } }
-      ]
-    }
-
-    const rows = await prisma.ticket.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        estudiante: true,
-        tipo: true,
-        departamentoActual: true
-      }
-    })
-
-    const tickets = rows.map(mapTicketCategory)
-    res.json({ ok: true, tickets })
-  } catch (err) {
-    console.error('GET /admin/tickets error:', err)
-    res.status(500).json({ ok: false, error: 'Error listando tickets' })
-  }
-})
-
-/* ========================
-   Listado para departamento
+   Bandeja Departamento
    ======================== */
 
 router.get(
@@ -332,9 +292,14 @@ router.get(
   requireRole('departamento', 'maestro'),
   async (req, res) => {
     try {
-      const { q } = req.query || {}
+      const deptId = req.sessionUser?.departamentoId
+      if (!deptId) {
+        return res.status(400).json({ ok: false, error: 'Usuario sin departamento asignado' })
+      }
+
+      const { q } = req.query
       const where = {
-        departamentoActualId: req.sessionUser.departamentoId ?? undefined
+        departamentoActualId: deptId
       }
 
       if (q) {

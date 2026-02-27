@@ -25,7 +25,7 @@
         </div>
         <div><strong>Departamento actual:</strong> {{ ticket.departamentoActual?.nombre || '-' }}</div>
         <div><strong>Tipo:</strong> {{ ticket.tipo?.nombre || '-' }}</div>
-        <div><strong>CRU:</strong> {{ ticket.cru || '-' }}</div>
+        <div><strong>CRU:</strong> {{ ticket.estudiante?.cru || '-' }}</div>
         <div><strong>Categoría de consulta:</strong> {{ ticket.categoriaConsulta || ticket.categoriaQueja || '-' }}</div>
       </section>
 
@@ -361,51 +361,41 @@ onMounted(load)
 }
 
 :root[data-theme="dark"] .status-default {
-  background: rgba(148, 163, 184, 0.2);
-  color: #cbd5e1;
+  background: rgba(156, 163, 175, 0.2);
+  color: #d1d5db;
 }
 
 .msg-bubble {
-  border-radius: 8px;
   padding: 0.75rem;
-  border: 1px solid #e5e7eb;
-}
-
-:root[data-theme="dark"] .msg-bubble {
-  border-color: var(--border);
-}
-
-.msg-staff {
-  background: #f9fafb;
-}
-
-:root[data-theme="dark"] .msg-staff {
-  background: #1e293b;
+  border-radius: 8px;
+  border: 1px solid var(--border);
 }
 
 .msg-student {
-  background: #ecfeff;
+  background: rgba(59, 130, 246, 0.05);
+  border-left: 3px solid #3b82f6;
 }
 
 :root[data-theme="dark"] .msg-student {
-  background: #0f2a2e;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.msg-staff {
+  background: rgba(34, 197, 94, 0.05);
+  border-left: 3px solid #22c55e;
+}
+
+:root[data-theme="dark"] .msg-staff {
+  background: rgba(34, 197, 94, 0.1);
 }
 
 .msg-meta {
   font-size: 0.85rem;
-  color: #6b7280;
-}
-
-:root[data-theme="dark"] .msg-meta {
   color: var(--muted);
+  margin-bottom: 0.5rem;
 }
 
 .msg-body {
-  margin-top: 0.5rem;
-  color: #1f2937;
-}
-
-:root[data-theme="dark"] .msg-body {
-  color: var(--text);
+  line-height: 1.5;
 }
 </style>

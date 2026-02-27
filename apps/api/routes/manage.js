@@ -1,9 +1,9 @@
 // apps/api/routes/manage.js
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
 const { requireAuth, requireRole } = require('../middlewares/auth');
 const { createNotification } = require('../utils/notifications');
-const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -11,6 +11,11 @@ const router = express.Router();
 /* ========================
    Helpers
    ======================== */
+
+async function hashOnce(pwd) {
+  return bcrypt.hash(String(pwd || ''), 10);
+}
+
 async function addTicketLog({ ticketId, action, byUserId, details }) {
   try {
     return await prisma.auditLog.create({
@@ -18,7 +23,7 @@ async function addTicketLog({ ticketId, action, byUserId, details }) {
         ticketId,
         actorId: byUserId ?? null,
         action,
-        details: details ? String(details) : null,
+        details: details ? String(details) : null
       }
     });
   } catch (e) {
@@ -26,18 +31,13 @@ async function addTicketLog({ ticketId, action, byUserId, details }) {
   }
 }
 
-async function hashOnce(pwd) {
-  const salt = await bcrypt.genSalt(10);
-  return bcrypt.hash(pwd, salt);
-}
-
 /* ========================
    Datos estáticos (CRUs)
    ======================== */
 const CRUS = [
+  { slug: 'cru-panama-oeste', nombre: 'C.R.U. de Panamá Oeste' },
   { slug: 'cru-colon', nombre: 'C.R.U. de Colón' },
-  { slug: 'cru-panama-este', nombre: 'C.R.U. Panamá Este' },
-  { slug: 'cru-panama-oeste', nombre: 'C.R.U. Panamá Oeste' },
+  { slug: 'cru-chiriqui', nombre: 'C.R.U. de Chiriquí' },
   { slug: 'cru-san-miguelito', nombre: 'C.R.U. de San Miguelito' },
   { slug: 'cru-azuero', nombre: 'C.R.U. de Azuero' },
   { slug: 'cru-los-santos', nombre: 'C.R.U. de Los Santos' },
@@ -72,7 +72,7 @@ const FACULTADES = [
   { slug: 'farmacia', nombre: 'Facultad de Farmacia' },
   { slug: 'enfermeria', nombre: 'Facultad de Enfermería' },
   { slug: 'bellas-artes', nombre: 'Facultad de Bellas Artes' },
-  { slug: 'informatica-electronica-comunicacion', nombre: 'Fac. de Informática, Electrónica y Comunicación' },
+  { slug: 'informatica-electronica-comunicacion', nombre: 'Facultad de Informática, Electrónica y Comunicación' },
   { slug: 'psicologia', nombre: 'Facultad de Psicología' },
   { slug: 'ingenieria', nombre: 'Facultad de Ingeniería' },
 ];
@@ -135,6 +135,7 @@ router.get(
             { nombre:   { contains: q } },
             { apellido: { contains: q } },
             { email:    { contains: q } },
+            { cru:      { contains: q } },  // ⬅️ BÚSQUEDA POR CRU
           ]
         },
         orderBy: { id: 'desc' },
@@ -145,6 +146,7 @@ router.get(
           cedula: true,
           email: true,
           facultad: true,
+          cru: true,  // ⬅️ INCLUIR CRU EN RESPUESTA
         }
       });
 
@@ -163,7 +165,7 @@ router.post(
   requireRole('recepcion', 'maestro'),
   async (req, res) => {
     try {
-      const { nombre, apellido, cedula, email, facultad } = req.body || {};
+      const { nombre, apellido, cedula, email, facultad, cru } = req.body || {};  // ⬅️ AGREGAR CRU
 
       if (!nombre || !apellido || !cedula || !email) {
         return res.status(400).json({ ok: false, error: 'Faltan campos obligatorios' });
@@ -195,6 +197,7 @@ router.post(
           passwordHash,
           rol: 'estudiante',
           facultad: facultad ? String(facultad) : null,
+          cru: cru ? String(cru) : null,  // ⬅️ GUARDAR CRU
           twoFactorEnabled: false,
           failedLoginCount: 0,
         },
@@ -205,6 +208,7 @@ router.post(
           cedula: true,
           email: true,
           facultad: true,
+          cru: true,  // ⬅️ INCLUIR CRU EN RESPUESTA
           rol: true,
         }
       });
@@ -256,6 +260,7 @@ router.get('/admin/users', requireAuth, requireRole('maestro'), async (req, res)
         email: true,
         rol: true,
         facultad: true,
+        cru: true,  // ⬅️ INCLUIR CRU
         departamentoId: true,
         departamento: {
           select: {
@@ -279,7 +284,7 @@ router.get('/admin/users', requireAuth, requireRole('maestro'), async (req, res)
 // Crear nuevo usuario (maestro, recepcion, departamento)
 router.post('/admin/users', requireAuth, requireRole('maestro'), async (req, res) => {
   try {
-    const { nombre, apellido, cedula, email, rol, departamentoId, facultad } = req.body || {};
+    const { nombre, apellido, cedula, email, rol, departamentoId, facultad, cru } = req.body || {};  // ⬅️ AGREGAR CRU
 
     // Validaciones básicas
     if (!nombre || !apellido || !cedula || !email || !rol) {
@@ -293,30 +298,8 @@ router.post('/admin/users', requireAuth, requireRole('maestro'), async (req, res
     if (!['maestro', 'recepcion', 'departamento'].includes(rol)) {
       return res.status(400).json({ 
         ok: false, 
-        error: 'Rol inválido. Permitidos: maestro, recepcion, departamento' 
+        error: 'Rol inválido. Utiliza "maestro", "recepcion" o "departamento"' 
       });
-    }
-
-    // Si es departamento, el departamentoId es OBLIGATORIO
-    if (rol === 'departamento') {
-      if (!departamentoId) {
-        return res.status(400).json({ 
-          ok: false, 
-          error: 'El rol "departamento" requiere asignar un departamentoId' 
-        });
-      }
-      
-      // Verificar que el departamento existe
-      const dept = await prisma.department.findUnique({ 
-        where: { id: Number(departamentoId) } 
-      });
-      
-      if (!dept) {
-        return res.status(400).json({ 
-          ok: false, 
-          error: 'El departamento especificado no existe' 
-        });
-      }
     }
 
     // Verificar unicidad de email y cédula
@@ -327,7 +310,7 @@ router.post('/admin/users', requireAuth, requireRole('maestro'), async (req, res
           { email: String(email).toLowerCase().trim() }
         ]
       },
-      select: { id: true, cedula: true, email: true }
+      select: { id: true }
     });
 
     if (existing) {
@@ -337,11 +320,11 @@ router.post('/admin/users', requireAuth, requireRole('maestro'), async (req, res
       });
     }
 
-    // Contraseña temporal
-    const tempPassword = 'Temporal#2025';
+    // Generar contraseña temporal
+    const tempPassword = `Temp-${String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0')}`;
     const passwordHash = await hashOnce(tempPassword);
 
-    // Crear usuario
+    // Construir datos del usuario
     const userData = {
       nombre: String(nombre).trim(),
       apellido: String(apellido).trim(),
@@ -349,9 +332,9 @@ router.post('/admin/users', requireAuth, requireRole('maestro'), async (req, res
       email: String(email).toLowerCase().trim(),
       passwordHash,
       rol,
+      mustChangePassword: true,
       twoFactorEnabled: false,
-      failedLoginCount: 0,
-      mustChangePassword: true
+      failedLoginCount: 0
     };
 
     // Campos opcionales
@@ -361,6 +344,10 @@ router.post('/admin/users', requireAuth, requireRole('maestro'), async (req, res
     
     if (facultad) {
       userData.facultad = String(facultad).trim();
+    }
+
+    if (cru) {  // ⬅️ AGREGAR CRU
+      userData.cru = String(cru).trim();
     }
 
     const user = await prisma.user.create({
@@ -373,6 +360,7 @@ router.post('/admin/users', requireAuth, requireRole('maestro'), async (req, res
         email: true,
         rol: true,
         facultad: true,
+        cru: true,  // ⬅️ INCLUIR CRU EN RESPUESTA
         departamentoId: true,
         departamento: {
           select: {
@@ -399,7 +387,7 @@ router.post('/admin/users', requireAuth, requireRole('maestro'), async (req, res
 router.patch('/admin/users/:id', requireAuth, requireRole('maestro'), async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { nombre, apellido, cedula, email, rol, departamentoId, facultad } = req.body || {};
+    const { nombre, apellido, cedula, email, rol, departamentoId, facultad, cru } = req.body || {};  // ⬅️ AGREGAR CRU
 
     // Verificar que el usuario existe
     const existingUser = await prisma.user.findUnique({ 
@@ -463,6 +451,11 @@ router.patch('/admin/users/:id', requireAuth, requireRole('maestro'), async (req
       updateData.facultad = facultad ? String(facultad).trim() : null;
     }
 
+    // Actualizar CRU si se proporciona ⬅️ AGREGAR ESTO
+    if (cru !== undefined) {
+      updateData.cru = cru ? String(cru).trim() : null;
+    }
+
     // Verificar unicidad si se actualizan email o cédula
     if (cedula || email) {
       const conflict = await prisma.user.findFirst({
@@ -496,6 +489,7 @@ router.patch('/admin/users/:id', requireAuth, requireRole('maestro'), async (req
         email: true,
         rol: true,
         facultad: true,
+        cru: true,  // ⬅️ INCLUIR CRU EN RESPUESTA
         departamentoId: true,
         departamento: {
           select: {
@@ -612,12 +606,11 @@ router.get('/admin/tickets', requireAuth, requireRole('recepcion', 'maestro'), a
         asunto: true,
         estado: true,
         createdAt: true,
-        cru: true,
         categoriaQueja: true,
         tipo: { select: { nombre: true } },
         departamentoActual: { select: { nombre: true, slug: true } },
         estudiante: {
-          select: { nombre: true, apellido: true, email: true, cedula: true, facultad: true },
+          select: { nombre: true, apellido: true, email: true, cedula: true, facultad: true, cru: true },
         },
       },
     });
@@ -671,12 +664,11 @@ router.get('/admin/tickets/export', requireAuth, requireRole('recepcion', 'maest
         asunto: true,
         estado: true,
         createdAt: true,
-        cru: true,
         categoriaQueja: true,
         tipo: { select: { nombre: true } },
         departamentoActual: { select: { nombre: true } },
         estudiante: {
-          select: { nombre: true, apellido: true, email: true, cedula: true, facultad: true },
+          select: { nombre: true, apellido: true, email: true, cedula: true, facultad: true, cru: true },
         },
       },
     });
@@ -704,7 +696,7 @@ router.get('/admin/tickets/export', requireAuth, requireRole('recepcion', 'maest
         safeCsv(r.asunto),
         r.estado,
         new Date(r.createdAt).toISOString(),
-        r.cru || '',
+        r.estudiante?.cru || '',
         r.categoriaQueja || '',
         r.tipo?.nombre || '',
         r.departamentoActual?.nombre || '',
@@ -767,12 +759,11 @@ router.get('/dept/tickets', requireAuth, requireRole('departamento', 'maestro'),
         asunto: true,
         estado: true,
         createdAt: true,
-        cru: true,
         categoriaQueja: true,
         tipo: { select: { nombre: true } },
         departamentoActual: { select: { nombre: true, slug: true } },
         estudiante: {
-          select: { nombre: true, apellido: true, email: true, cedula: true, facultad: true },
+          select: { nombre: true, apellido: true, email: true, cedula: true, facultad: true, cru: true },
         },
       },
     });
@@ -855,21 +846,21 @@ router.post('/tickets/:id/messages', requireAuth, requireRole('recepcion', 'depa
       data: {
         ticketId: id,
         autorUserId: req.sessionUser.id,
-        contenidoHtml: String(contenidoHtml),
-      },
+        contenidoHtml: String(contenidoHtml)
+      }
     });
 
     await addTicketLog({
       ticketId: id,
       action: 'ADD_REPLY',
       byUserId: req.sessionUser.id,
-      details: `Respuesta agregada`,
+      details: 'Respuesta agregada'
     });
 
     if (createNotification) {
       await createNotification(prisma, {
         type: 'TICKET_REPLIED',
-        message: `Nueva respuesta en ${t.token}`,
+        message: `Nuevo mensaje en ticket ${t.token}`,
         ticketId: t.id,
         actorId: req.sessionUser.id,
         departmentId: t.departamentoActualId
@@ -889,17 +880,22 @@ router.post('/tickets/:id/reassign', requireAuth, requireRole('recepcion', 'maes
     const id = Number(req.params.id);
     const { departmentId, departmentSlug } = req.body || {};
 
-    let target = null;
+    if (!departmentId && !departmentSlug) {
+      return res.status(400).json({ ok: false, error: 'Debe indicar departmentId o departmentSlug' });
+    }
+
+    let target;
     if (departmentId) {
       target = await prisma.department.findUnique({ where: { id: Number(departmentId) } });
-    } else if (departmentSlug) {
+    } else {
       target = await prisma.department.findUnique({ where: { slug: String(departmentSlug) } });
     }
-    if (!target) return res.status(400).json({ ok: false, error: 'Departamento destino inválido' });
+
+    if (!target) return res.status(400).json({ ok: false, error: 'Departamento inválido' });
 
     const t = await prisma.ticket.update({
       where: { id },
-      data: { departamentoActualId: target.id },
+      data: { departamentoActualId: target.id }
     });
 
     await addTicketLog({
