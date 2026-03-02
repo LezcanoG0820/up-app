@@ -106,11 +106,9 @@
             </option>
           </select>
 
-          <input v-model.trim="newUser.facultad" placeholder="Facultad (opcional)" />
-
-          <!-- ⬅️ NUEVO: Dropdown CRU -->
+          <!-- Dropdown CRU/Sede -->
           <select v-model="newUser.cru">
-            <option value="">CRU/Extensión (opcional)</option>
+            <option value="">Sede/CRU (opcional)</option>
             <option v-for="c in centrosRegionales" :key="c.slug" :value="c.nombre">
               {{ c.nombre }}
             </option>
@@ -168,11 +166,9 @@
             </option>
           </select>
 
-          <input v-model.trim="editingUser.facultad" placeholder="Facultad (opcional)" />
-
-          <!-- ⬅️ NUEVO: Dropdown CRU -->
+          <!-- Dropdown CRU/Sede -->
           <select v-model="editingUser.cru">
-            <option value="">CRU/Extensión (opcional)</option>
+            <option value="">Sede/CRU (opcional)</option>
             <option v-for="c in centrosRegionales" :key="c.slug" :value="c.nombre">
               {{ c.nombre }}
             </option>
@@ -205,10 +201,8 @@ const error = ref('')
 const searchQuery = ref('')
 const roleFilter = ref('')
 
-// Departamentos
+// Departamentos y CRUs
 const departments = ref([])
-
-// ⬅️ NUEVO: Centros Regionales
 const centrosRegionales = ref([])
 
 // Modal crear
@@ -223,8 +217,7 @@ const newUser = ref({
   email: '',
   rol: '',
   departamentoId: '',
-  facultad: '',
-  cru: ''  // ⬅️ NUEVO
+  cru: ''
 })
 
 // Modal editar
@@ -239,8 +232,7 @@ const editingUser = ref({
   email: '',
   rol: '',
   departamentoId: '',
-  facultad: '',
-  cru: ''  // ⬅️ NUEVO
+  cru: ''
 })
 
 // Cargar usuarios
@@ -272,7 +264,7 @@ async function loadDepartments() {
   }
 }
 
-// ⬅️ NUEVO: Cargar centros regionales
+// Cargar centros regionales
 async function loadCentrosRegionales() {
   try {
     const { centros } = await manageApi.getCentrosRegionales()
@@ -296,19 +288,15 @@ async function createUser() {
       email: newUser.value.email,
       rol: newUser.value.rol,
       ...(newUser.value.departamentoId && { departamentoId: Number(newUser.value.departamentoId) }),
-      ...(newUser.value.facultad && { facultad: newUser.value.facultad }),
-      ...(newUser.value.cru && { cru: newUser.value.cru })  // ⬅️ NUEVO
+      ...(newUser.value.cru && { cru: newUser.value.cru })
     }
 
     const response = await usersApi.create(payload)
     
-    // Mostrar contraseña temporal
     tempPassword.value = response.tempPassword || 'Temporal#2025'
     
-    // Recargar lista
     await loadUsers()
     
-    // Resetear formulario
     newUser.value = {
       nombre: '',
       apellido: '',
@@ -316,11 +304,8 @@ async function createUser() {
       email: '',
       rol: '',
       departamentoId: '',
-      facultad: '',
-      cru: ''  // ⬅️ NUEVO
+      cru: ''
     }
-    
-    // No cerrar el modal inmediatamente para que vean la contraseña
   } catch (e) {
     createError.value = String(e?.message || e)
   } finally {
@@ -338,8 +323,7 @@ function openEditModal(user) {
     email: user.email,
     rol: user.rol,
     departamentoId: user.departamentoId || '',
-    facultad: user.facultad || '',
-    cru: user.cru || ''  // ⬅️ NUEVO
+    cru: user.cru || ''
   }
   showEditModal.value = true
 }
@@ -359,8 +343,7 @@ async function updateUser() {
       departamentoId: editingUser.value.rol === 'departamento' 
         ? Number(editingUser.value.departamentoId) 
         : null,
-      facultad: editingUser.value.facultad || null,
-      cru: editingUser.value.cru || null  // ⬅️ NUEVO
+      cru: editingUser.value.cru || null
     }
 
     await usersApi.update(editingUser.value.id, payload)
@@ -399,8 +382,7 @@ function closeCreateModal() {
     email: '',
     rol: '',
     departamentoId: '',
-    facultad: '',
-    cru: ''  // ⬅️ NUEVO
+    cru: ''
   }
 }
 
@@ -415,8 +397,7 @@ function closeEditModal() {
     email: '',
     rol: '',
     departamentoId: '',
-    facultad: '',
-    cru: ''  // ⬅️ NUEVO
+    cru: ''
   }
 }
 
@@ -445,6 +426,6 @@ function getRoleBadgeStyle(rol) {
 onMounted(() => {
   loadUsers()
   loadDepartments()
-  loadCentrosRegionales()  // ⬅️ NUEVO
+  loadCentrosRegionales()
 })
 </script>

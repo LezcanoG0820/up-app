@@ -3,14 +3,16 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 const { requireAuth } = require('../middlewares/auth');
-const prisma = new PrismaClient();
 
+const prisma = new PrismaClient();
 const router = express.Router();
 
 /* ---------- Helpers ---------- */
+
 function isValidEmail(email = '') {
   return typeof email === 'string' && /\S+@\S+\.\S+/.test(email);
 }
+
 function isStrongPassword(pwd = '') {
   // Mínimo 10 caracteres, 1 mayúscula, 1 minúscula, 1 número
   return typeof pwd === 'string'
@@ -19,22 +21,26 @@ function isStrongPassword(pwd = '') {
     && /[a-z]/.test(pwd)
     && /\d/.test(pwd);
 }
+
 function normEmail(e = '') {
   return String(e || '').trim().toLowerCase();
 }
 
 /* ---------- Registro (solo estudiantes) ---------- */
+
 router.post('/register', async (req, res) => {
   try {
-    const { nombre, apellido, cedula, email, password, facultad } = req.body || {};
+    const { nombre, apellido, cedula, email, password, cru } = req.body || {};
 
     // Validaciones básicas
-    if (!nombre || !apellido || !cedula || !email || !password || !facultad) {
+    if (!nombre || !apellido || !cedula || !email || !password) {
       return res.status(400).json({ ok: false, error: 'Faltan campos requeridos' });
     }
+
     if (!isValidEmail(email)) {
       return res.status(400).json({ ok: false, error: 'Email inválido' });
     }
+
     if (!isStrongPassword(password)) {
       return res.status(400).json({
         ok: false,
@@ -50,6 +56,7 @@ router.post('/register', async (req, res) => {
       where: { OR: [{ email: emailN }, { cedula: cedulaN }] },
       select: { id: true, email: true, cedula: true }
     });
+
     if (conflict) {
       return res.status(409).json({ ok: false, error: 'Email o cédula ya registrados' });
     }
@@ -63,17 +70,24 @@ router.post('/register', async (req, res) => {
         nombre: String(nombre).trim(),
         apellido: String(apellido).trim(),
         cedula: cedulaN,
-        facultad: String(facultad).trim(),
+        cru: cru ? String(cru).trim() : null,
         email: emailN,
         passwordHash,
         rol: 'estudiante',
         twoFactorEnabled: false
       },
-      select: { id: true, nombre: true, apellido: true, email: true, rol: true, cedula: true, facultad: true }
+      select: { 
+        id: true, 
+        nombre: true, 
+        apellido: true, 
+        email: true, 
+        rol: true, 
+        cedula: true, 
+        cru: true 
+      }
     });
 
     req.session.userId = user.id; // auto-login
-
     return res.json({ ok: true, user });
   } catch (err) {
     console.error('Error en registro:', err);
@@ -82,6 +96,7 @@ router.post('/register', async (req, res) => {
 });
 
 /* ---------- Login (email O cédula) ---------- */
+
 router.post('/login', async (req, res) => {
   try {
     const { identifier, password } = req.body || {};
@@ -100,7 +115,7 @@ router.post('/login', async (req, res) => {
       : { cedula: identifierClean };
 
     const user = await prisma.user.findUnique({ where: searchCondition });
-    
+
     if (!user || !user.passwordHash) {
       return res.status(400).json({ ok: false, error: 'Credenciales inválidas' });
     }
@@ -115,10 +130,12 @@ router.post('/login', async (req, res) => {
 
     // Verificar contraseña
     const valid = await bcrypt.compare(pwd, user.passwordHash);
+
     if (!valid) {
       const fails = user.failedLoginCount + 1;
       const updateData = { failedLoginCount: fails };
       if (fails >= 5) updateData.lockedUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+
       await prisma.user.update({ where: { id: user.id }, data: updateData });
       return res.status(400).json({ ok: false, error: 'Credenciales inválidas' });
     }
@@ -142,7 +159,7 @@ router.post('/login', async (req, res) => {
         nombre: user.nombre, 
         apellido: user.apellido, 
         cedula: user.cedula, 
-        facultad: user.facultad,
+        cru: user.cru,
         departamentoId: user.departamentoId
       }
     });
@@ -153,11 +170,13 @@ router.post('/login', async (req, res) => {
 });
 
 /* ---------- Sesión actual ---------- */
+
 router.get('/me', async (req, res) => {
   try {
     if (!req.session?.userId) {
       return res.json({ ok: true, user: null });
     }
+
     const user = await prisma.user.findUnique({
       where: { id: req.session.userId },
       select: { 
@@ -167,11 +186,12 @@ router.get('/me', async (req, res) => {
         email: true, 
         rol: true, 
         cedula: true, 
-        facultad: true,
+        cru: true,
         departamentoId: true,
         mustChangePassword: true
       }
     });
+
     res.json({ ok: true, user });
   } catch (err) {
     console.error('Error en /me:', err);
@@ -180,11 +200,13 @@ router.get('/me', async (req, res) => {
 });
 
 /* ---------- Logout ---------- */
+
 router.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ ok: true, message: 'Sesión cerrada' }));
 });
 
 /* ---------- Cambiar contraseña ---------- */
+
 router.post('/change-password', requireAuth, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body || {};
@@ -213,6 +235,7 @@ router.post('/change-password', requireAuth, async (req, res) => {
 
     // Verificar contraseña actual
     const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+
     if (!valid) {
       return res.status(400).json({ ok: false, error: 'Contraseña actual incorrecta' });
     }

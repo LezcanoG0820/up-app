@@ -36,30 +36,38 @@ export const authApi = {
   login:    (payload) => request('/auth/login',    { method: 'POST', body: payload }),
   me:       () => request('/auth/me'),
   logout:   () => request('/auth/logout', { method: 'POST' }),
-  changePassword: (payload) => request('/auth/change-password', { method: 'POST', body: payload }),
   changePassword: (body) => request('/auth/change-password', { method: 'POST', body })
 }
 
 export const ticketsApi = {
-  getTypes:     () => request('/api/ticket-types'),
-  create:       (payload) => request('/api/tickets', { method: 'POST', body: payload }),
-  myList:       () => request('/api/my/tickets'),
-  myTickets:    () => request('/api/my/tickets'),
-  myTicketById: (id) => request(`/api/my/tickets/${id}`)
+  getTypes:          () => request('/api/ticket-types'),
+  create:            (payload) => request('/api/tickets', { method: 'POST', body: payload }),
+  createByReception: (payload) => request('/api/tickets/by-reception', { method: 'POST', body: payload }),
+  myList:            () => request('/api/my/tickets'),
+  myTickets:         () => request('/api/my/tickets'),
+  myTicketById:      (id) => request(`/api/my/tickets/${id}`)
 }
 
 export const manageApi = {
+  // Tickets (bandejas)
   adminTickets:  (filters = {}) => request(`/api/admin/tickets${qs(filters)}`),
   exportTickets: (filters = {}) => { window.location.href = `/api/admin/tickets/export${qs(filters)}` },
   deptTickets:   (filters = {}) => request(`/api/dept/tickets${qs(filters)}`),
-  ticketById:    (id) => request(`/api/tickets/${id}`),
-  reply:         (id, contenidoHtml) => request(`/api/tickets/${id}/messages`, { method: 'POST', body: { contenidoHtml } }),
-  reassign:      (id, { departmentSlug, departmentId } = {}) => request(`/api/tickets/${id}/reassign`, { method: 'POST', body: { departmentSlug, departmentId } }),
-  complete:      (id) => request(`/api/tickets/${id}/complete`, { method: 'POST' }),
-  departments:   () => request('/api/departments'),
-  getCRUs:       () => request('/api/crus'),
-  getFacultades: () => request('/api/facultades'),
-  getCentrosRegionales: () => request('/api/centros-regionales') //recien
+  
+  // Detalle y acciones de ticket
+  getTicket:      (id) => request(`/api/tickets/${id}`),
+  replyTicket:    (id, contenidoHtml) => request(`/api/tickets/${id}/messages`, { method: 'POST', body: { contenidoHtml } }),
+  reassignTicket: (id, departmentSlug) => request(`/api/tickets/${id}/reassign`, { method: 'POST', body: { departmentSlug } }),
+  completeTicket: (id) => request(`/api/tickets/${id}/complete`, { method: 'POST' }),
+  
+  // Departamentos y CRUs
+  departments:          () => request('/api/departments'),
+  getCRUs:              () => request('/api/crus'),
+  getCentrosRegionales: () => request('/api/centros-regionales'),
+  
+  // Estudiantes (recepción/maestro)
+  searchStudents: (q) => request(`/api/students/search${qs({ q })}`),
+  createStudent:  (payload) => request('/api/students', { method: 'POST', body: payload })
 }
 
 // ---- Documentos ----
@@ -97,26 +105,16 @@ export const documentsApi = {
   remove: (id) => request(`/api/documents/${id}`, { method: 'DELETE' })
 }
 
-// Recepción (estudiantes + tickets en su nombre)
-export const studentsApi = {
-  search: (q) => request(`/api/students/search${qs({ q })}`),
-  create: (payload) => request('/api/students', { method: 'POST', body: payload })
-}
-
-export const receptionTicketsApi = {
-  createForStudent: (payload) => request('/api/tickets/by-reception', { method: 'POST', body: payload })
-}
-
 // Notificaciones
 export const notifApi = {
-  list:       () => request('/api/notifications'),
-  markRead:   (id) => request(`/api/notifications/${id}/read`, { method: 'POST' }),
-  markAllRead: () => request('/api/notifications/read-all', { method: 'POST' })
+  list:         () => request('/api/notifications'),
+  markRead:     (id) => request(`/api/notifications/${id}/read`, { method: 'POST' }),
+  markAllRead:  () => request('/api/notifications/read-all', { method: 'POST' })
 }
 
 // ---- GESTIÓN DE USUARIOS (ADMIN) ----
 export const usersApi = {
-  list: (filters = {}) => request(`/api/admin/users${qs(filters)}`),
+  list:   (filters = {}) => request(`/api/admin/users${qs(filters)}`),
   create: (payload) => request('/api/admin/users', { method: 'POST', body: payload }),
   update: (id, payload) => request(`/api/admin/users/${id}`, { method: 'PATCH', body: payload }),
   delete: (id) => request(`/api/admin/users/${id}`, { method: 'DELETE' })

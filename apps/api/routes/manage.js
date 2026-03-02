@@ -32,49 +32,66 @@ async function addTicketLog({ ticketId, action, byUserId, details }) {
 }
 
 /* ========================
-   Datos estáticos (CRUs)
+   Datos estáticos - CRUs, Extensiones, Programas y Campus (Facultades)
    ======================== */
 const CRUS = [
-  { slug: 'cru-panama-oeste', nombre: 'C.R.U. de Panamá Oeste' },
-  { slug: 'cru-colon', nombre: 'C.R.U. de Colón' },
-  { slug: 'cru-chiriqui', nombre: 'C.R.U. de Chiriquí' },
-  { slug: 'cru-san-miguelito', nombre: 'C.R.U. de San Miguelito' },
-  { slug: 'cru-azuero', nombre: 'C.R.U. de Azuero' },
-  { slug: 'cru-los-santos', nombre: 'C.R.U. de Los Santos' },
-  { slug: 'cru-cocle', nombre: 'C.R.U. de Coclé' },
-  { slug: 'cru-veraguas', nombre: 'C.R.U. de Veraguas' },
-  { slug: 'cru-bocas-del-toro', nombre: 'C.R.U. de Bocas del Toro' },
-  { slug: 'cru-darien', nombre: 'C.R.U. de Darién' },
-  { slug: 'ext-aguadulce', nombre: 'Ext. de Aguadulce' },
-  { slug: 'ext-ocu', nombre: 'Ext. de Ocú' },
-  { slug: 'ext-sona', nombre: 'Ext. de Soná' },
-  { slug: 'ext-torti', nombre: 'Ext. de Tortí' },
-  { slug: 'anexo-guna-yala', nombre: 'Programa anexo Guna Yala' },
-];
-
-/* ========================
-   Datos estáticos (Facultades)
-   ======================== */
-const FACULTADES = [
-  { slug: 'administracion-publica', nombre: 'Facultad de Administración Pública' },
-  { slug: 'ciencias-agropecuarias', nombre: 'Facultad de Ciencias Agropecuarias' },
-  { slug: 'arquitectura-diseno', nombre: 'Facultad de Arquitectura y Diseño' },
-  { slug: 'ciencias-naturales-exactas-tecnologia', nombre: 'Facultad de Ciencias Naturales, Exactas y Tecnología' },
-  { slug: 'derecho-ciencias-politicas', nombre: 'Facultad de Derecho y Ciencias Políticas' },
-  { slug: 'humanidades', nombre: 'Facultad de Humanidades' },
-  { slug: 'medicina-veterinaria', nombre: 'Facultad de Medicina Veterinaria' },
-  { slug: 'medicina', nombre: 'Facultad de Medicina' },
-  { slug: 'odontologia', nombre: 'Facultad de Odontología' },
-  { slug: 'economia', nombre: 'Facultad de Economía' },
-  { slug: 'administracion-empresas-contabilidad', nombre: 'Facultad de Administración de Empresas y Contabilidad' },
-  { slug: 'comunicacion-social', nombre: 'Facultad de Comunicación Social' },
-  { slug: 'ciencias-educacion', nombre: 'Facultad de Ciencias de la Educación' },
-  { slug: 'farmacia', nombre: 'Facultad de Farmacia' },
-  { slug: 'enfermeria', nombre: 'Facultad de Enfermería' },
-  { slug: 'bellas-artes', nombre: 'Facultad de Bellas Artes' },
-  { slug: 'informatica-electronica-comunicacion', nombre: 'Facultad de Informática, Electrónica y Comunicación' },
-  { slug: 'psicologia', nombre: 'Facultad de Psicología' },
-  { slug: 'ingenieria', nombre: 'Facultad de Ingeniería' },
+  // === CENTROS REGIONALES UNIVERSITARIOS (con C.R.U. adelante) ===
+  { slug: 'cru-chiriqui', nombre: 'C.R.U. CHIRIQUÍ' },
+  { slug: 'cru-azuero', nombre: 'C.R.U. AZUERO' },
+  { slug: 'cru-veraguas', nombre: 'C.R.U. VERAGUAS' },
+  { slug: 'cru-colon', nombre: 'C.R.U. COLÓN' },
+  { slug: 'cru-cocle', nombre: 'C.R.U. COCLÉ' },
+  { slug: 'cru-los-santos', nombre: 'C.R.U. LOS SANTOS' },
+  { slug: 'cru-bocas-del-toro', nombre: 'C.R.U. BOCAS DEL TORO' },
+  { slug: 'cru-panama-oeste', nombre: 'C.R.U. PANAMÁ OESTE' },
+  { slug: 'cru-san-miguelito', nombre: 'C.R.U. SAN MIGUELITO' },
+  { slug: 'cru-darien', nombre: 'C.R.U. DARIÉN' },
+  { slug: 'cru-panama-este', nombre: 'C.R.U. PANAMÁ ESTE' },
+  
+  // === EXTENSIONES UNIVERSITARIAS ===
+  { slug: 'ext-aguadul', nombre: 'EXT.U. AGUADUL' },
+  { slug: 'ext-sona', nombre: 'EXT. U. SONÁ' },
+  { slug: 'ext-arraijan', nombre: 'E. ARRAIJÁN' },
+  { slug: 'ext-torti', nombre: 'EXT.U. TORTÍ' },
+  { slug: 'ext-ocu', nombre: 'EXT. OCU' },
+  
+  // === PROGRAMAS ANEXOS ===
+  { slug: 'prog-ch-grande', nombre: 'P. CH. GRANDE' },
+  { slug: 'prog-isla-colon', nombre: 'P. ISLA COLÓN' },
+  { slug: 'prog-kankintu', nombre: 'P. KANKINTU' },
+  { slug: 'prog-kuna-ust', nombre: 'P. KUNA Y. UST' },
+  { slug: 'prog-kuna-car', nombre: 'P. KUNA Y. CAR' },
+  { slug: 'prog-kuna-nar', nombre: 'P. KUNA Y. NAR' },
+  { slug: 'prog-chame', nombre: 'P. CHAME' },
+  { slug: 'prog-macaracas', nombre: 'P. MACARACAS' },
+  { slug: 'prog-tonosi', nombre: 'P. TONOSÍ' },
+  { slug: 'prog-n-de-dios', nombre: 'P. N. DE DIOS' },
+  { slug: 'prog-bs-prado', nombre: 'P.N- B.S.PRADO' },
+  { slug: 'prog-rio-indio', nombre: 'P. RÍO INDIO' },
+  { slug: 'prog-cerr-puerco', nombre: 'P.CERR PUERCO' },
+  { slug: 'prog-guabal', nombre: 'P. GUABAL' },
+  { slug: 'prog-kusapin', nombre: 'P. KUSAPÍN' },
+  { slug: 'prog-portobelo', nombre: 'P. PORTOBELO' },
+  
+  // === CAMPUS (FACULTADES) ===
+  { slug: 'campus-medicina', nombre: 'MEDICINA' },
+  { slug: 'campus-admon-empresas', nombre: 'ADMON. DE EMPRESAS Y CONTABILIDAD' },
+  { slug: 'campus-derecho', nombre: 'DERECHO Y CIENCIAS POLÍTICAS' },
+  { slug: 'campus-admon-publica', nombre: 'ADMINISTRACIÓN PÚBLICA' },
+  { slug: 'campus-odontologia', nombre: 'ODONTOLOGÍA' },
+  { slug: 'campus-ciencias-educacion', nombre: 'CIENCIAS DE LA EDUCACIÓN' },
+  { slug: 'campus-humanidades', nombre: 'HUMANIDADES' },
+  { slug: 'campus-ciencias-agropecuarias', nombre: 'CIENCIAS AGROPECUARIAS' },
+  { slug: 'campus-psicologia', nombre: 'PSICOLOGÍA' },
+  { slug: 'campus-enfermeria', nombre: 'ENFERMERÍA' },
+  { slug: 'campus-medicina-veterinaria', nombre: 'MEDICINA VETERINARIA' },
+  { slug: 'campus-informatica', nombre: 'INFORMÁTICA ELECTRÓNICA Y COMUNIC.' },
+  { slug: 'campus-arquitectura', nombre: 'ARQUITECTURA Y DISEÑO' },
+  { slug: 'campus-ciencias-naturales', nombre: 'CIENCIAS NATURALES, EXACTAS Y TEC.' },
+  { slug: 'campus-bellas-artes', nombre: 'BELLAS ARTES' },
+  { slug: 'campus-farmacia', nombre: 'FARMACIA' },
+  { slug: 'campus-comunicacion-social', nombre: 'COMUNICACIÓN SOCIAL' },
+  { slug: 'campus-ingenieria', nombre: 'INGENIERÍA' },
 ];
 
 /* ========================
@@ -88,9 +105,6 @@ router.get('/crus', async (_req, res) => res.json({ ok: true, crus: CRUS }));
 router.get('/centros-regionales', (_req, res) => {
   res.json({ ok: true, centros: CRUS });
 });
-
-// Facultades para registro/visualización (público)
-router.get('/facultades', async (_req, res) => res.json({ ok: true, facultades: FACULTADES }));
 
 // Listar departamentos (dropdown de reasignación) — requiere sesión
 router.get(
@@ -135,7 +149,7 @@ router.get(
             { nombre:   { contains: q } },
             { apellido: { contains: q } },
             { email:    { contains: q } },
-            { cru:      { contains: q } },  // ⬅️ BÚSQUEDA POR CRU
+            { cru:      { contains: q } },
           ]
         },
         orderBy: { id: 'desc' },
@@ -145,8 +159,7 @@ router.get(
           apellido: true,
           cedula: true,
           email: true,
-          facultad: true,
-          cru: true,  // ⬅️ INCLUIR CRU EN RESPUESTA
+          cru: true,
         }
       });
 
@@ -165,7 +178,7 @@ router.post(
   requireRole('recepcion', 'maestro'),
   async (req, res) => {
     try {
-      const { nombre, apellido, cedula, email, facultad, cru } = req.body || {};  // ⬅️ AGREGAR CRU
+      const { nombre, apellido, cedula, email, cru } = req.body || {};
 
       if (!nombre || !apellido || !cedula || !email) {
         return res.status(400).json({ ok: false, error: 'Faltan campos obligatorios' });
@@ -196,8 +209,7 @@ router.post(
           email: String(email).toLowerCase(),
           passwordHash,
           rol: 'estudiante',
-          facultad: facultad ? String(facultad) : null,
-          cru: cru ? String(cru) : null,  // ⬅️ GUARDAR CRU
+          cru: cru ? String(cru) : null,
           twoFactorEnabled: false,
           failedLoginCount: 0,
         },
@@ -207,8 +219,7 @@ router.post(
           apellido: true,
           cedula: true,
           email: true,
-          facultad: true,
-          cru: true,  // ⬅️ INCLUIR CRU EN RESPUESTA
+          cru: true,
           rol: true,
         }
       });
@@ -223,7 +234,6 @@ router.post(
 
 /* ========================
    GESTIÓN DE USUARIOS (MAESTRO)
-   Solo maestro puede crear/editar/eliminar usuarios
    ======================== */
 
 // Listar todos los usuarios
@@ -233,12 +243,10 @@ router.get('/admin/users', requireAuth, requireRole('maestro'), async (req, res)
     
     const where = {};
     
-    // Filtro por rol
     if (rol && ['maestro', 'recepcion', 'departamento', 'estudiante'].includes(rol)) {
       where.rol = rol;
     }
     
-    // Búsqueda por nombre, apellido, email o cédula
     if (q && typeof q === 'string' && q.trim()) {
       const qTrim = q.trim();
       where.OR = [
@@ -259,8 +267,7 @@ router.get('/admin/users', requireAuth, requireRole('maestro'), async (req, res)
         cedula: true,
         email: true,
         rol: true,
-        facultad: true,
-        cru: true,  // ⬅️ INCLUIR CRU
+        cru: true,
         departamentoId: true,
         departamento: {
           select: {
@@ -284,9 +291,8 @@ router.get('/admin/users', requireAuth, requireRole('maestro'), async (req, res)
 // Crear nuevo usuario (maestro, recepcion, departamento)
 router.post('/admin/users', requireAuth, requireRole('maestro'), async (req, res) => {
   try {
-    const { nombre, apellido, cedula, email, rol, departamentoId, facultad, cru } = req.body || {};  // ⬅️ AGREGAR CRU
+    const { nombre, apellido, cedula, email, rol, departamentoId, cru } = req.body || {};
 
-    // Validaciones básicas
     if (!nombre || !apellido || !cedula || !email || !rol) {
       return res.status(400).json({ 
         ok: false, 
@@ -294,7 +300,6 @@ router.post('/admin/users', requireAuth, requireRole('maestro'), async (req, res
       });
     }
 
-    // Validar roles permitidos (NO se puede crear estudiantes desde aquí)
     if (!['maestro', 'recepcion', 'departamento'].includes(rol)) {
       return res.status(400).json({ 
         ok: false, 
@@ -302,7 +307,6 @@ router.post('/admin/users', requireAuth, requireRole('maestro'), async (req, res
       });
     }
 
-    // Verificar unicidad de email y cédula
     const existing = await prisma.user.findFirst({
       where: {
         OR: [
@@ -320,11 +324,9 @@ router.post('/admin/users', requireAuth, requireRole('maestro'), async (req, res
       });
     }
 
-    // Generar contraseña temporal
     const tempPassword = `Temp-${String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0')}`;
     const passwordHash = await hashOnce(tempPassword);
 
-    // Construir datos del usuario
     const userData = {
       nombre: String(nombre).trim(),
       apellido: String(apellido).trim(),
@@ -337,16 +339,11 @@ router.post('/admin/users', requireAuth, requireRole('maestro'), async (req, res
       failedLoginCount: 0
     };
 
-    // Campos opcionales
     if (rol === 'departamento' && departamentoId) {
       userData.departamentoId = Number(departamentoId);
     }
-    
-    if (facultad) {
-      userData.facultad = String(facultad).trim();
-    }
 
-    if (cru) {  // ⬅️ AGREGAR CRU
+    if (cru) {
       userData.cru = String(cru).trim();
     }
 
@@ -359,8 +356,7 @@ router.post('/admin/users', requireAuth, requireRole('maestro'), async (req, res
         cedula: true,
         email: true,
         rol: true,
-        facultad: true,
-        cru: true,  // ⬅️ INCLUIR CRU EN RESPUESTA
+        cru: true,
         departamentoId: true,
         departamento: {
           select: {
@@ -375,7 +371,7 @@ router.post('/admin/users', requireAuth, requireRole('maestro'), async (req, res
     res.json({ 
       ok: true, 
       user,
-      tempPassword // Se muestra al maestro para que se lo comunique al usuario
+      tempPassword
     });
   } catch (err) {
     console.error('POST /admin/users error:', err);
@@ -387,9 +383,8 @@ router.post('/admin/users', requireAuth, requireRole('maestro'), async (req, res
 router.patch('/admin/users/:id', requireAuth, requireRole('maestro'), async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { nombre, apellido, cedula, email, rol, departamentoId, facultad, cru } = req.body || {};  // ⬅️ AGREGAR CRU
+    const { nombre, apellido, cedula, email, rol, departamentoId, cru } = req.body || {};
 
-    // Verificar que el usuario existe
     const existingUser = await prisma.user.findUnique({ 
       where: { id },
       select: { id: true, rol: true, departamentoId: true }
@@ -399,7 +394,6 @@ router.patch('/admin/users/:id', requireAuth, requireRole('maestro'), async (req
       return res.status(404).json({ ok: false, error: 'Usuario no encontrado' });
     }
 
-    // Construir datos de actualización
     const updateData = {};
 
     if (nombre) updateData.nombre = String(nombre).trim();
@@ -407,11 +401,9 @@ router.patch('/admin/users/:id', requireAuth, requireRole('maestro'), async (req
     if (cedula) updateData.cedula = String(cedula).trim();
     if (email) updateData.email = String(email).toLowerCase().trim();
     
-    // Actualizar rol si se proporciona
     if (rol && ['maestro', 'recepcion', 'departamento', 'estudiante'].includes(rol)) {
       updateData.rol = rol;
       
-      // Si cambia a departamento, validar departamentoId
       if (rol === 'departamento' && !departamentoId && !existingUser.departamentoId) {
         return res.status(400).json({ 
           ok: false, 
@@ -419,18 +411,15 @@ router.patch('/admin/users/:id', requireAuth, requireRole('maestro'), async (req
         });
       }
       
-      // Si cambia de departamento a otro rol, limpiar departamentoId
       if (rol !== 'departamento') {
         updateData.departamentoId = null;
       }
     }
 
-    // Actualizar departamentoId si se proporciona
     if (departamentoId !== undefined) {
       if (departamentoId === null || departamentoId === '') {
         updateData.departamentoId = null;
       } else {
-        // Verificar que el departamento existe
         const dept = await prisma.department.findUnique({ 
           where: { id: Number(departamentoId) } 
         });
@@ -446,17 +435,10 @@ router.patch('/admin/users/:id', requireAuth, requireRole('maestro'), async (req
       }
     }
 
-    // Actualizar facultad si se proporciona
-    if (facultad !== undefined) {
-      updateData.facultad = facultad ? String(facultad).trim() : null;
-    }
-
-    // Actualizar CRU si se proporciona ⬅️ AGREGAR ESTO
     if (cru !== undefined) {
       updateData.cru = cru ? String(cru).trim() : null;
     }
 
-    // Verificar unicidad si se actualizan email o cédula
     if (cedula || email) {
       const conflict = await prisma.user.findFirst({
         where: {
@@ -477,7 +459,6 @@ router.patch('/admin/users/:id', requireAuth, requireRole('maestro'), async (req
       }
     }
 
-    // Actualizar usuario
     const user = await prisma.user.update({
       where: { id },
       data: updateData,
@@ -488,8 +469,7 @@ router.patch('/admin/users/:id', requireAuth, requireRole('maestro'), async (req
         cedula: true,
         email: true,
         rol: true,
-        facultad: true,
-        cru: true,  // ⬅️ INCLUIR CRU EN RESPUESTA
+        cru: true,
         departamentoId: true,
         departamento: {
           select: {
@@ -513,7 +493,6 @@ router.delete('/admin/users/:id', requireAuth, requireRole('maestro'), async (re
   try {
     const id = Number(req.params.id);
 
-    // Verificar que el usuario existe
     const user = await prisma.user.findUnique({ 
       where: { id },
       select: { id: true, rol: true, nombre: true, apellido: true }
@@ -523,7 +502,6 @@ router.delete('/admin/users/:id', requireAuth, requireRole('maestro'), async (re
       return res.status(404).json({ ok: false, error: 'Usuario no encontrado' });
     }
 
-    // Prevenir que el maestro se elimine a sí mismo
     if (id === req.sessionUser.id) {
       return res.status(400).json({ 
         ok: false, 
@@ -531,7 +509,6 @@ router.delete('/admin/users/:id', requireAuth, requireRole('maestro'), async (re
       });
     }
 
-    // Eliminar usuario (Prisma manejará las cascadas según el schema)
     await prisma.user.delete({ where: { id } });
 
     res.json({ 
@@ -541,7 +518,6 @@ router.delete('/admin/users/:id', requireAuth, requireRole('maestro'), async (re
   } catch (err) {
     console.error('DELETE /admin/users/:id error:', err);
     
-    // Manejar error de constraint (si el usuario tiene tickets, mensajes, etc.)
     if (err.code === 'P2003') {
       return res.status(400).json({ 
         ok: false, 
@@ -588,7 +564,6 @@ router.get('/admin/tickets', requireAuth, requireRole('recepcion', 'maestro'), a
                     { email:    { contains: qRaw } },
                     { cedula:   { equals: qRaw } },
                     { cedula:   { contains: qRaw } },
-                    { facultad: { contains: qRaw } },
                   ],
                 },
               },
@@ -610,7 +585,7 @@ router.get('/admin/tickets', requireAuth, requireRole('recepcion', 'maestro'), a
         tipo: { select: { nombre: true } },
         departamentoActual: { select: { nombre: true, slug: true } },
         estudiante: {
-          select: { nombre: true, apellido: true, email: true, cedula: true, facultad: true, cru: true },
+          select: { nombre: true, apellido: true, email: true, cedula: true, cru: true },
         },
       },
     });
@@ -624,11 +599,11 @@ router.get('/admin/tickets', requireAuth, requireRole('recepcion', 'maestro'), a
 });
 
 /* ========================
-   Export CSV (maestro/recepción)
+   Export CSV
    ======================== */
 router.get('/admin/tickets/export', requireAuth, requireRole('recepcion', 'maestro'), async (req, res) => {
   try {
-    const { q, estado, date_from, date_to, nombre, apellido, cedula, facultad } = req.query;
+    const { q, estado, date_from, date_to, nombre, apellido, cedula } = req.query;
 
     const qRaw = typeof q === 'string' ? q.trim() : '';
 
@@ -653,7 +628,6 @@ router.get('/admin/tickets/export', requireAuth, requireRole('recepcion', 'maest
       ...(nombre   ? { estudiante: { nombre:   { contains: String(nombre) } } } : {}),
       ...(apellido ? { estudiante: { apellido: { contains: String(apellido) } } } : {}),
       ...(cedula   ? { estudiante: { cedula:   { contains: String(cedula) } } } : {}),
-      ...(facultad ? { estudiante: { facultad: { contains: String(facultad) } } } : {}),
     };
 
     const rows = await prisma.ticket.findMany({
@@ -668,7 +642,7 @@ router.get('/admin/tickets/export', requireAuth, requireRole('recepcion', 'maest
         tipo: { select: { nombre: true } },
         departamentoActual: { select: { nombre: true } },
         estudiante: {
-          select: { nombre: true, apellido: true, email: true, cedula: true, facultad: true, cru: true },
+          select: { nombre: true, apellido: true, email: true, cedula: true, cru: true },
         },
       },
     });
@@ -678,7 +652,7 @@ router.get('/admin/tickets/export', requireAuth, requireRole('recepcion', 'maest
       'Asunto',
       'Estado',
       'Fecha',
-      'CRU',
+      'Sede/CRU',
       'CategoriaConsulta',
       'Tipo',
       'Departamento',
@@ -686,7 +660,6 @@ router.get('/admin/tickets/export', requireAuth, requireRole('recepcion', 'maest
       'EstudianteApellido',
       'Cedula',
       'Email',
-      'Facultad',
     ];
     const lines = [header.join(',')];
 
@@ -704,7 +677,6 @@ router.get('/admin/tickets/export', requireAuth, requireRole('recepcion', 'maest
         r.estudiante?.apellido || '',
         r.estudiante?.cedula || '',
         r.estudiante?.email || '',
-        r.estudiante?.facultad || '',
       ]
         .map(safeCsv)
         .join(',');
@@ -727,7 +699,7 @@ function safeCsv(v) {
 }
 
 /* ========================
-   Bandeja Departamento (filtro por q = token o cédula)
+   Bandeja Departamento
    ======================== */
 router.get('/dept/tickets', requireAuth, requireRole('departamento', 'maestro'), async (req, res) => {
   try {
@@ -763,7 +735,7 @@ router.get('/dept/tickets', requireAuth, requireRole('departamento', 'maestro'),
         tipo: { select: { nombre: true } },
         departamentoActual: { select: { nombre: true, slug: true } },
         estudiante: {
-          select: { nombre: true, apellido: true, email: true, cedula: true, facultad: true, cru: true },
+          select: { nombre: true, apellido: true, email: true, cedula: true, cru: true },
         },
       },
     });
@@ -777,7 +749,7 @@ router.get('/dept/tickets', requireAuth, requireRole('departamento', 'maestro'),
 });
 
 /* ========================
-   Detalle de ticket (recepción/departamento/maestro)
+   Detalle de ticket
    ======================== */
 router.get('/tickets/:id', requireAuth, requireRole('recepcion', 'departamento', 'maestro'), async (req, res) => {
   try {
@@ -832,7 +804,6 @@ router.get('/tickets/:id', requireAuth, requireRole('recepcion', 'departamento',
    Acciones sobre ticket
    ======================== */
 
-// Responder (texto enriquecido simple HTML)
 router.post('/tickets/:id/messages', requireAuth, requireRole('recepcion', 'departamento', 'maestro'), async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -874,7 +845,6 @@ router.post('/tickets/:id/messages', requireAuth, requireRole('recepcion', 'depa
   }
 });
 
-// Reasignar
 router.post('/tickets/:id/reassign', requireAuth, requireRole('recepcion', 'maestro'), async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -922,7 +892,6 @@ router.post('/tickets/:id/reassign', requireAuth, requireRole('recepcion', 'maes
   }
 });
 
-// Completar
 router.post('/tickets/:id/complete', requireAuth, requireRole('recepcion', 'departamento', 'maestro'), async (req, res) => {
   try {
     const id = Number(req.params.id);

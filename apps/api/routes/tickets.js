@@ -43,7 +43,7 @@ async function addTicketLog ({ ticketId, action, byUserId, details }) {
 
 router.post('/tickets', requireAuth, requireRole('estudiante'), async (req, res) => {
   try {
-    const { tipoId, asunto, descripcion, categoriaConsulta, categoriaQueja } = req.body || {}  // ❌ ELIMINADO: cru
+    const { tipoId, asunto, descripcion, categoriaConsulta, categoriaQueja } = req.body || {}
 
     if (!tipoId || !asunto || !descripcion) {
       return res.status(400).json({ ok: false, error: 'Datos incompletos' })
@@ -68,7 +68,6 @@ router.post('/tickets', requireAuth, requireRole('estudiante'), async (req, res)
         tipoId: tipo.id,
         asunto: String(asunto),
         descripcion: String(descripcion),
-        // cru: cru ?? null,  ❌ ELIMINADO
         categoriaQueja: category
       }
     })
@@ -107,91 +106,93 @@ router.post(
   async (req, res) => {
     try {
       const {
-        studentId,
-        tipoId,
-        departmentId,
+        estudianteId,
+        departmentSlug,
         asunto,
         descripcion,
-        // cru,  ❌ ELIMINADO
-        categoriaConsulta,
+        detalleAdicional,
         categoriaQueja
       } = req.body || {}
 
-      if (!studentId || !asunto || !descripcion) {
-        return res.status(400).json({ ok: false, error: 'Datos incompletos' })
+      // Validaciones básicas
+      if (!estudianteId || !asunto || !descripcion) {
+        return res.status(400).json({ ok: false, error: 'Faltan campos obligatorios: estudianteId, asunto, descripcion' })
       }
 
-      if (!tipoId && !departmentId) {
-        return res.status(400).json({
-          ok: false,
-          error: 'Debe especificar tipoId o departmentId'
-        })
+      if (!departmentSlug) {
+        return res.status(400).json({ ok: false, error: 'Falta departmentSlug' })
       }
 
+      // Buscar estudiante
       const estudiante = await prisma.user.findUnique({
-        where: { id: Number(studentId) }
+        where: { id: Number(estudianteId) }
       })
+      
       if (!estudiante || estudiante.rol !== 'estudiante') {
         return res.status(400).json({ ok: false, error: 'Estudiante inválido' })
       }
 
-      let tipo
-      let departamentoActualId
+      // Buscar departamento por slug
+      const departamento = await prisma.department.findUnique({
+        where: { slug: String(departmentSlug) }
+      })
 
-      if (tipoId) {
-        tipo = await prisma.ticketType.findUnique({
-          where: { id: Number(tipoId) }
-        })
-        if (!tipo) {
-          return res.status(400).json({ ok: false, error: 'Tipo de ticket inválido' })
-        }
-        departamentoActualId = tipo.departmentId
-      } else {
-        const departamento = await prisma.department.findUnique({
-          where: { id: Number(departmentId) }
-        })
-        if (!departamento) {
-          return res.status(400).json({ ok: false, error: 'Departamento inválido' })
-        }
-
-        tipo = await prisma.ticketType.findFirst({
-          where: { departmentId: departamento.id },
-          orderBy: { id: 'asc' }
-        })
-
-        if (!tipo) {
-          tipo = await prisma.ticketType.create({
-            data: {
-              nombre: `General - ${departamento.nombre}`,
-              departmentId: departamento.id
-            }
-          })
-        }
-
-        departamentoActualId = departamento.id
+      if (!departamento) {
+        return res.status(400).json({ ok: false, error: 'Departamento inválido' })
       }
 
-      const token = generateToken()
-      const category = categoriaConsulta ?? categoriaQueja ?? null
+      // Buscar tipo de ticket para este departamento
+      let tipo = await prisma.ticketType.findFirst({
+        where: { departmentId: departamento.id },
+        orderBy: { id: 'asc' }
+      })
 
+      // Si no existe, crear uno genérico
+      if (!tipo) {
+        tipo = await prisma.ticketType.create({
+          data: {
+            nombre: `General - ${departamento.nombre}`,
+            departmentId: departamento.id
+          }
+        })
+      }
+
+      // Generar token
+      const token = generateToken()
+
+      // Combinar descripción con detalle adicional si existe
+      const descripcionFinal = detalleAdicional 
+        ? `${descripcion}\n\n${detalleAdicional}`
+        : descripcion
+
+      // Crear ticket
       const ticket = await prisma.ticket.create({
         data: {
           token,
           estudianteId: estudiante.id,
-          departamentoActualId,
+          departamentoActualId: departamento.id,
           tipoId: tipo.id,
           asunto: String(asunto),
-          descripcion: String(descripcion),
-          // cru: cru ?? null,  ❌ ELIMINADO
-          categoriaQueja: category
+          descripcion: String(descripcionFinal),
+          categoriaQueja: categoriaQueja ? String(categoriaQueja) : null
         },
         include: {
-          estudiante: true,
+          estudiante: {
+            select: {
+              id: true,
+              nombre: true,
+              apellido: true,
+              cedula: true,
+              email: true,
+              cru: true
+            }
+          },
           departamentoActual: true,
           tipo: true
         }
       })
 
+      // Log de auditoría
       await addTicketLog({
         ticketId: ticket.id,
         action: 'CREATE_TICKET',
@@ -199,6 +200,7 @@ router.post(
         details: 'Ticket creado desde recepción/maestro'
       })
 
+      // Notificación
       await createNotification(prisma, {
         type: 'TICKET_CREATED',
         message: `Ticket ${ticket.token} creado para ${estudiante.nombre} ${estudiante.apellido}`,

@@ -1,255 +1,235 @@
 <template>
-  <main style="padding:2rem; max-width:900px; margin:auto;">
-    <!-- Estados globales -->
-    <div v-if="loading">Cargando…</div>
-    <p v-if="error" style="color:var(--danger)">{{ error }}</p>
-
-    <section v-if="!loading && ticket" class="grid-gap" style="display:flex; flex-direction:column; gap:1.5rem;">
-      <!-- ENCABEZADO + RESUMEN -->
-      <header>
-        <h1 style="margin:0 0 .25rem 0;">Ticket {{ ticket.token }}</h1>
-        <p style="margin:0; font-size:.9rem; color:var(--muted);">
-          Creado: {{ fmt(ticket.createdAt) }}
+  <main style="padding:2rem; max-width:1000px; margin:auto;">
+    <div v-if="loading">Cargando...</div>
+    <div v-else-if="error" style="color:crimson;">{{ error }}</div>
+    <div v-else-if="ticket">
+      <!-- HEADER -->
+      <header style="margin-bottom:2rem;">
+        <h1 style="margin:0;">{{ ticket.token }}</h1>
+        <p style="margin:.5rem 0 0; color:#666;">
+          <span :style="{ 
+            padding: '.25rem .5rem', 
+            borderRadius: '4px', 
+            background: ticket.estado === 'completado' ? '#4caf50' : ticket.estado === 'en_proceso' ? '#ff9800' : '#2196f3',
+            color: '#fff',
+            fontSize: '.875rem'
+          }">
+            {{ ticket.estado.toUpperCase() }}
+          </span>
+          <span style="margin-left:1rem;">Creado: {{ formatDate(ticket.createdAt) }}</span>
         </p>
       </header>
 
-      <section
-        style="border:1px solid var(--border); border-radius:8px; padding:1rem; display:grid; grid-template-columns:1fr 1fr; gap:.5rem; background:var(--surface);"
-      >
-        <div style="grid-column:1 / -1; font-weight:600;">Resumen</div>
-        <div>
-          <strong>Estado:</strong>
-          <span class="status-badge" :class="statusClass(ticket.estado)" style="margin-left:.25rem;">
-            {{ ticket.estado }}
-          </span>
-        </div>
-        <div><strong>Departamento actual:</strong> {{ ticket.departamentoActual?.nombre || '-' }}</div>
-        <div><strong>Tipo:</strong> {{ ticket.tipo?.nombre || '-' }}</div>
-        <div><strong>CRU:</strong> {{ ticket.estudiante?.cru || '-' }}</div>
-        <div><strong>Categoría de consulta:</strong> {{ ticket.categoriaConsulta || ticket.categoriaQueja || '-' }}</div>
-      </section>
-
-      <!-- ESTUDIANTE -->
-      <section
-        style="border:1px solid var(--border); border-radius:8px; padding:1rem; display:grid; grid-template-columns:1fr 1fr; gap:.5rem; background:var(--surface);"
-      >
-        <div style="grid-column:1 / -1; font-weight:600;">Estudiante</div>
-        <div style="grid-column:1 / -1;">
-          <strong>Nombre:</strong>
-          {{ ticket.estudiante?.nombre }} {{ ticket.estudiante?.apellido }}
-        </div>
-        <div>
-          <strong>Cédula:</strong>
-          {{ ticket.estudiante?.cedula || '-' }}
-        </div>
-        <div>
-          <strong>Email:</strong>
-          {{ ticket.estudiante?.email || '-' }}
-        </div>
-        <div style="grid-column:1 / -1;">
-          <strong>Facultad:</strong>
-          {{ ticket.estudiante?.facultad || '-' }}
-        </div>
-      </section>
-
-      <!-- ASUNTO + DESCRIPCIÓN -->
-      <section style="border:1px solid var(--border); border-radius:8px; padding:1rem; display:grid; gap:.5rem; background:var(--surface);">
-        <div><strong>Asunto:</strong> {{ ticket.asunto }}</div>
-        <div>
-          <strong>Descripción:</strong>
-          <div style="margin-top:.25rem; white-space:pre-wrap;">{{ ticket.descripcion }}</div>
-        </div>
-      </section>
-
-      <!-- MENSAJES -->
-      <section>
-        <h2 style="margin:0 0 .5rem 0;">Mensajes</h2>
-        <div v-if="ticket.messages?.length" style="display:flex; flex-direction:column; gap:.5rem;">
-          <article
-            v-for="m in ticket.messages"
-            :key="m.id"
-            class="msg-bubble"
-            :class="m.autor?.rol === 'estudiante' ? 'msg-student' : 'msg-staff'"
-          >
-            <div class="msg-meta">
-              {{ fmt(m.createdAt) }} —
-              {{ m.autor?.nombre }} {{ m.autor?.apellido }}
-              <span v-if="m.autor?.rol">({{ roleLabel(m.autor.rol) }})</span>
-            </div>
-            <div class="msg-body" v-html="m.contenidoHtml"></div>
-          </article>
-        </div>
-        <p v-else>No hay mensajes.</p>
-      </section>
-
-      <!-- ACCIONES (solo staff, no estudiante) -->
-      <section
-        v-if="!isStudent"
-        style="display:grid; gap:1rem; border:1px solid var(--border); border-radius:8px; padding:1rem; background:var(--surface);"
-      >
-        <!-- Responder -->
-        <fieldset style="border:1px solid var(--border); border-radius:6px; padding:.75rem;">
-          <legend style="padding:0 .25rem; color:var(--muted);"><strong>Responder</strong></legend>
-          <textarea
-            v-model="contenidoHtml"
-            rows="4"
-            placeholder="Ingresa un mensaje para responder al ticket, por ejemplo: Estamos revisando su caso"
-            style="width:100%;"
-          ></textarea>
-          <div style="margin-top:.5rem;">
-            <button @click="enviarRespuesta" :disabled="loadingReply">
-              {{ loadingReply ? 'Enviando…' : 'Enviar respuesta' }}
-            </button>
-            <span v-if="replyMsg" style="margin-left:.5rem; color:var(--success)">{{ replyMsg }}</span>
+      <!-- DATOS DEL ESTUDIANTE -->
+      <section style="border:1px solid #ddd; padding:1.5rem; border-radius:8px; margin-bottom:1.5rem; background:#f9f9f9;">
+        <h3 style="margin-top:0;">Datos del Estudiante</h3>
+        <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:1rem;">
+          <div>
+            <strong>Nombre:</strong><br/>
+            {{ ticket.estudiante.nombre }} {{ ticket.estudiante.apellido }}
           </div>
-        </fieldset>
+          <div>
+            <strong>Cédula:</strong><br/>
+            {{ ticket.estudiante.cedula }}
+          </div>
+          <div>
+            <strong>Email:</strong><br/>
+            {{ ticket.estudiante.email }}
+          </div>
+          <div>
+            <strong>Sede/CRU:</strong><br/>
+            {{ ticket.estudiante.cru || '-' }}
+          </div>
+        </div>
+      </section>
 
-        <!-- Reasignar (solo recepción/admin) -->
-        <fieldset
-          v-if="isRecepcionOrAdmin"
-          style="border:1px solid var(--border); border-radius:6px; padding:.75rem;"
-        >
-          <legend style="padding:0 .25rem; color:var(--muted);"><strong>Reasignar</strong></legend>
-          <select v-model.number="departmentId" style="min-width:280px;">
-            <option :value="0" disabled>Selecciona departamento destino</option>
-            <option v-for="d in departments" :key="d.id" :value="d.id">
-              {{ d.nombre }} ({{ d.slug }})
+      <!-- DATOS DEL TICKET -->
+      <section style="border:1px solid #ddd; padding:1.5rem; border-radius:8px; margin-bottom:1.5rem;">
+        <h3 style="margin-top:0;">Datos del Ticket</h3>
+        <div style="display:grid; gap:1rem;">
+          <div>
+            <strong>Asunto:</strong><br/>
+            {{ ticket.asunto }}
+          </div>
+          <div>
+            <strong>Descripción:</strong><br/>
+            {{ ticket.descripcion }}
+          </div>
+          <div v-if="ticket.detalleAdicional">
+            <strong>Detalle Adicional:</strong><br/>
+            {{ ticket.detalleAdicional }}
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:1rem;">
+            <div>
+              <strong>Tipo:</strong><br/>
+              {{ ticket.tipo?.nombre || '-' }}
+            </div>
+            <div>
+              <strong>Departamento:</strong><br/>
+              {{ ticket.departamentoActual?.nombre || '-' }}
+            </div>
+            <div>
+              <strong>Categoría:</strong><br/>
+              {{ ticket.categoriaQueja || ticket.categoriaConsulta || '-' }}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ACCIONES (solo para recepción/departamento/maestro) -->
+      <section v-if="canManage" style="border:1px solid #ddd; padding:1.5rem; border-radius:8px; margin-bottom:1.5rem; background:#fff3cd;">
+        <h3 style="margin-top:0;">Acciones</h3>
+        <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+          <button 
+            v-if="canReassign && ticket.estado !== 'completado'" 
+            @click="showReassignModal = true"
+          >
+            Reasignar
+          </button>
+          <button 
+            v-if="ticket.estado !== 'completado'" 
+            @click="completeTicket"
+            :disabled="completing"
+            style="background:#4caf50; color:#fff;"
+          >
+            {{ completing ? 'Completando...' : 'Marcar como Completado' }}
+          </button>
+        </div>
+      </section>
+
+      <!-- RESPUESTAS -->
+      <section style="border:1px solid #ddd; padding:1.5rem; border-radius:8px; margin-bottom:1.5rem;">
+        <h3 style="margin-top:0;">Respuestas ({{ ticket.messages?.length || 0 }})</h3>
+        
+        <div v-if="!ticket.messages || ticket.messages.length === 0" style="color:#999;">
+          No hay respuestas aún.
+        </div>
+
+        <div v-else>
+          <div v-for="msg in ticket.messages" :key="msg.id" 
+            style="border-left:3px solid #2196f3; padding:.75rem 1rem; margin-bottom:1rem; background:#f5f5f5; border-radius:4px;"
+          >
+            <div style="font-size:.875rem; color:#666; margin-bottom:.5rem;">
+              <strong>{{ msg.autor?.nombre }} {{ msg.autor?.apellido }}</strong> 
+              ({{ msg.autor?.rol }}) - {{ formatDate(msg.createdAt) }}
+            </div>
+            <div v-html="msg.contenidoHtml"></div>
+          </div>
+        </div>
+
+        <!-- FORMULARIO RESPONDER (solo para staff) -->
+        <div v-if="canManage && ticket.estado !== 'completado'" style="margin-top:1.5rem;">
+          <h4>Agregar Respuesta</h4>
+          <form @submit.prevent="submitReply">
+            <textarea 
+              v-model="replyContent" 
+              rows="5" 
+              placeholder="Escribe tu respuesta aquí..." 
+              required
+              style="width:100%; padding:.75rem; border:1px solid #ddd; border-radius:4px; font-family:inherit;"
+            ></textarea>
+            <div style="margin-top:.5rem;">
+              <button type="submit" :disabled="replying">
+                {{ replying ? 'Enviando...' : 'Enviar Respuesta' }}
+              </button>
+            </div>
+            <p v-if="replyError" style="color:crimson; margin-top:.5rem;">{{ replyError }}</p>
+          </form>
+        </div>
+      </section>
+
+      <!-- HISTORIAL DE AUDITORÍA -->
+      <section style="border:1px solid #ddd; padding:1.5rem; border-radius:8px;">
+        <h3 style="margin-top:0;">Historial de Auditoría</h3>
+        <div v-if="!ticket.auditLogs || ticket.auditLogs.length === 0" style="color:#999;">
+          Sin registros de auditoría.
+        </div>
+        <div v-else style="font-size:.875rem;">
+          <div v-for="log in ticket.auditLogs" :key="log.id" 
+            style="padding:.5rem 0; border-bottom:1px solid #eee;"
+          >
+            <strong>{{ log.action }}</strong> - 
+            {{ log.actor?.nombre || 'Sistema' }} - 
+            {{ formatDate(log.createdAt) }}
+            <div v-if="log.details" style="color:#666; font-size:.8rem;">{{ log.details }}</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- MODAL REASIGNAR -->
+    <div 
+      v-if="showReassignModal" 
+      style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:1000;"
+      @click.self="showReassignModal = false"
+    >
+      <div style="background:#fff; padding:2rem; border-radius:8px; max-width:400px; width:90%;">
+        <h3 style="margin-top:0;">Reasignar Ticket</h3>
+        <form @submit.prevent="reassignTicket">
+          <select v-model="reassignDeptSlug" required style="width:100%; padding:.5rem; margin-bottom:1rem;">
+            <option value="">Seleccione departamento</option>
+            <option v-for="d in departments" :key="d.id" :value="d.slug">
+              {{ d.nombre }}
             </option>
           </select>
-          <div style="margin-top:.5rem;">
-            <button @click="reasignar" :disabled="loadingReassign || !departmentId">
-              {{ loadingReassign ? 'Reasignando…' : 'Reasignar ticket' }}
+          <p v-if="reassignError" style="color:crimson;">{{ reassignError }}</p>
+          <div style="display:flex; gap:.5rem; justify-content:flex-end;">
+            <button type="button" @click="showReassignModal = false" class="btn-secondary">Cancelar</button>
+            <button type="submit" :disabled="reassigning">
+              {{ reassigning ? 'Reasignando...' : 'Reasignar' }}
             </button>
           </div>
-        </fieldset>
-
-        <!-- Completar -->
-        <fieldset style="border:1px solid var(--border); border-radius:6px; padding:.75rem;">
-          <legend style="padding:0 .25rem; color:var(--muted);"><strong>Completar</strong></legend>
-          <p style="margin:0 0 .5rem 0; font-size:.9rem;">
-            Marca el ticket como completado cuando la gestión haya finalizado.
-          </p>
-          <button @click="completar" :disabled="loadingComplete">
-            {{ loadingComplete ? 'Marcando…' : 'Marcar como completado' }}
-          </button>
-        </fieldset>
-      </section>
-
-      <!-- HISTORIAL -->
-      <section>
-        <h2 style="margin:0 0 .5rem 0;">Historial</h2>
-        <div v-if="ticket.auditLogs?.length">
-          <div
-            v-for="log in ticket.auditLogs"
-            :key="log.id"
-            style="font-size:.9rem; padding:.25rem 0; border-bottom:1px dashed var(--border);"
-          >
-            {{ fmt(log.createdAt) }} — <strong>{{ auditLabel(log.action) }}</strong>
-            <span v-if="log.actor">
-              &nbsp;por {{ log.actor.nombre }} {{ log.actor.apellido }}
-              ({{ roleLabel(log.actor.rol) }})
-            </span>
-            <div v-if="log.details" style="color:var(--muted)">{{ log.details }}</div>
-          </div>
-        </div>
-        <p v-else>Sin historial.</p>
-      </section>
-    </section>
+        </form>
+      </div>
+    </div>
   </main>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import { manageApi, ticketsApi } from '../api'
+import { useRoute, useRouter } from 'vue-router'
+import { manageApi } from '../api'
 import { session } from '../store/session'
 
 const route = useRoute()
-const id = Number(route.params.id)
+const router = useRouter()
 
-const loading = ref(false)
 const ticket = ref(null)
+const loading = ref(false)
 const error = ref('')
 
-const contenidoHtml = ref('')
+// Respuestas
+const replyContent = ref('')
+const replying = ref(false)
+const replyError = ref('')
+
+// Reasignar
+const showReassignModal = ref(false)
+const reassignDeptSlug = ref('')
+const reassigning = ref(false)
+const reassignError = ref('')
 const departments = ref([])
-const departmentId = ref(0)
 
-const loadingReply = ref(false)
-const replyMsg = ref('')
-const loadingReassign = ref(false)
-const loadingComplete = ref(false)
+// Completar
+const completing = ref(false)
 
-const isStudent = computed(() => session.user?.rol === 'estudiante')
-const isRecepcionOrAdmin = computed(
-  () => session.user?.rol === 'recepcion' || session.user?.rol === 'admin' || session.user?.rol === 'maestro'
-)
+// Permisos
+const canManage = computed(() => {
+  return ['recepcion', 'departamento', 'maestro'].includes(session.user?.rol)
+})
 
-function fmt(d) {
-  try {
-    return new Date(d).toLocaleString()
-  } catch {
-    return d
-  }
-}
+const canReassign = computed(() => {
+  return ['recepcion', 'maestro'].includes(session.user?.rol)
+})
 
-function roleLabel(r) {
-  return r === 'recepcion'
-    ? 'Recepción'
-    : r === 'departamento'
-      ? 'Departamento'
-      : r === 'admin'
-        ? 'Admin'
-        : r === 'maestro'
-          ? 'Maestro'
-          : 'Estudiante'
-}
-
-function auditLabel(action) {
-  const map = {
-    CREATE: 'Ticket creado',
-    CREATE_TICKET: 'Ticket creado',
-    ADD_REPLY: 'Respuesta agregada',
-    REPLY: 'Respuesta agregada',
-    REASSIGN: 'Reasignado',
-    COMPLETE: 'Completado',
-    CLOSE: 'Cerrado'
-  }
-  return map[action] || action
-}
-
-function statusClass(val) {
-  switch (val) {
-    case 'abierto':
-      return 'status-open'
-    case 'en_progreso':
-      return 'status-progress'
-    case 'completado':
-      return 'status-completed'
-    case 'cerrado':
-      return 'status-closed'
-    default:
-      return 'status-default'
-  }
-}
-
-async function load() {
+// Cargar ticket
+async function loadTicket() {
   loading.value = true
   error.value = ''
   try {
-    const data = isStudent.value
-      ? await ticketsApi.myTicketById(id)
-      : await manageApi.ticketById(id)
-
-    ticket.value = data.ticket
-
-    // cargar departamentos solo para recepción/admin/maestro
-    if (isRecepcionOrAdmin.value) {
-      const { departments: deps } = await manageApi.departments()
-      departments.value = deps || []
-    } else {
-      departments.value = []
-    }
+    const id = Number(route.params.id)
+    const { ticket: t } = await manageApi.getTicket(id)
+    ticket.value = t
   } catch (e) {
     error.value = String(e?.message || e)
   } finally {
@@ -257,145 +237,73 @@ async function load() {
   }
 }
 
-async function enviarRespuesta() {
-  if (!contenidoHtml.value.trim()) return
-  loadingReply.value = true
-  replyMsg.value = ''
-  error.value = ''
+// Enviar respuesta
+async function submitReply() {
+  if (!replyContent.value.trim()) return
+  replying.value = true
+  replyError.value = ''
   try {
-    await manageApi.reply(id, contenidoHtml.value)
-    contenidoHtml.value = ''
-    replyMsg.value = 'Respuesta enviada'
-    await load()
+    await manageApi.replyTicket(ticket.value.id, replyContent.value.trim())
+    replyContent.value = ''
+    await loadTicket()
   } catch (e) {
-    error.value = String(e?.message || e)
+    replyError.value = String(e?.message || e)
   } finally {
-    loadingReply.value = false
+    replying.value = false
   }
 }
 
-async function reasignar() {
-  if (!departmentId.value) return
-  loadingReassign.value = true
-  error.value = ''
+// Reasignar
+async function reassignTicket() {
+  if (!reassignDeptSlug.value) return
+  reassigning.value = true
+  reassignError.value = ''
   try {
-    await manageApi.reassign(id, { departmentId: departmentId.value })
-    departmentId.value = 0
-    await load()
+    await manageApi.reassignTicket(ticket.value.id, reassignDeptSlug.value)
+    showReassignModal.value = false
+    reassignDeptSlug.value = ''
+    await loadTicket()
   } catch (e) {
-    error.value = String(e?.message || e)
+    reassignError.value = String(e?.message || e)
   } finally {
-    loadingReassign.value = false
+    reassigning.value = false
   }
 }
 
-async function completar() {
-  loadingComplete.value = true
-  error.value = ''
+// Completar
+async function completeTicket() {
+  if (!confirm('¿Marcar este ticket como completado?')) return
+  completing.value = true
   try {
-    await manageApi.complete(id)
-    await load()
+    await manageApi.completeTicket(ticket.value.id)
+    await loadTicket()
   } catch (e) {
-    error.value = String(e?.message || e)
+    alert('Error: ' + String(e?.message || e))
   } finally {
-    loadingComplete.value = false
+    completing.value = false
   }
 }
 
-onMounted(load)
+// Formato fecha
+function formatDate(d) {
+  if (!d) return '-'
+  return new Date(d).toLocaleString('es-PA')
+}
+
+// Cargar departamentos
+async function loadDepartments() {
+  try {
+    const { departments: d } = await manageApi.departments()
+    departments.value = d || []
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+onMounted(() => {
+  loadTicket()
+  if (canReassign.value) {
+    loadDepartments()
+  }
+})
 </script>
-
-<style scoped>
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.status-open {
-  background: #e0f2fe;
-  color: #075985;
-}
-
-:root[data-theme="dark"] .status-open {
-  background: rgba(56, 189, 248, 0.2);
-  color: #7dd3fc;
-}
-
-.status-progress {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-:root[data-theme="dark"] .status-progress {
-  background: rgba(251, 191, 36, 0.2);
-  color: #fcd34d;
-}
-
-.status-completed {
-  background: #dcfce7;
-  color: #166534;
-}
-
-:root[data-theme="dark"] .status-completed {
-  background: rgba(34, 197, 94, 0.2);
-  color: #86efac;
-}
-
-.status-closed {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-:root[data-theme="dark"] .status-closed {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
-}
-
-.status-default {
-  background: #e5e7eb;
-  color: #374151;
-}
-
-:root[data-theme="dark"] .status-default {
-  background: rgba(156, 163, 175, 0.2);
-  color: #d1d5db;
-}
-
-.msg-bubble {
-  padding: 0.75rem;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-}
-
-.msg-student {
-  background: rgba(59, 130, 246, 0.05);
-  border-left: 3px solid #3b82f6;
-}
-
-:root[data-theme="dark"] .msg-student {
-  background: rgba(59, 130, 246, 0.1);
-}
-
-.msg-staff {
-  background: rgba(34, 197, 94, 0.05);
-  border-left: 3px solid #22c55e;
-}
-
-:root[data-theme="dark"] .msg-staff {
-  background: rgba(34, 197, 94, 0.1);
-}
-
-.msg-meta {
-  font-size: 0.85rem;
-  color: var(--muted);
-  margin-bottom: 0.5rem;
-}
-
-.msg-body {
-  line-height: 1.5;
-}
-</style>

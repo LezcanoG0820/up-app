@@ -34,9 +34,6 @@ model User {
   rol            Rol
   departamentoId Int?
   departamento   Department? @relation(fields: [departamentoId], references: [id])
-
-  //facultad
-  facultad String?
   
   //CRU/Extensión (NUEVO - AGREGADO AQUÍ)
   cru String?
