@@ -23,9 +23,11 @@
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "express-session": "^1.18.2",
+    "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
     "pg": "^8.19.0",
-    "prisma": "^6.16.2"
+    "prisma": "^6.16.2",
+    "ws": "^8.19.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
