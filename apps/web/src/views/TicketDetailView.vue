@@ -21,7 +21,7 @@
       </header>
 
       <!-- DATOS DEL ESTUDIANTE -->
-      <section style="border:1px solid #ddd; padding:1.5rem; border-radius:8px; margin-bottom:1.5rem; background:#f9f9f9;">
+      <section style="border:1px solid #ddd; padding:1.5rem; border-radius:8px; margin-bottom:1.5rem;">
         <h3 style="margin-top:0;">Datos del Estudiante</h3>
         <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:1rem;">
           <div>
@@ -77,7 +77,7 @@
       </section>
 
       <!-- ACCIONES (solo para recepción/departamento/maestro) -->
-      <section v-if="canManage" style="border:1px solid #ddd; padding:1.5rem; border-radius:8px; margin-bottom:1.5rem; background:#fff3cd;">
+      <section v-if="canManage" style="border:1px solid #ddd; padding:1.5rem; border-radius:8px; margin-bottom:1.5rem;">
         <h3 style="margin-top:0;">Acciones</h3>
         <div style="display:flex; gap:1rem; flex-wrap:wrap;">
           <button 

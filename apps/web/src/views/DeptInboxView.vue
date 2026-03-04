@@ -29,7 +29,7 @@
           <th style="text-align:left; border-bottom:1px solid #ddd; padding:.5rem;">Asunto</th>
           <th style="text-align:left; border-bottom:1px solid #ddd; padding:.5rem;">Estudiante</th>
           <th style="text-align:left; border-bottom:1px solid #ddd; padding:.5rem;">Cédula</th>
-          <th style="text-align:left; border-bottom:1px solid #ddd; padding:.5rem;">Facultad</th>
+          <th style="text-align:left; border-bottom:1px solid #ddd; padding:.5rem;">Sede/CRU</th>
           <th style="text-align:left; border-bottom:1px solid #ddd; padding:.5rem;">Tipo</th>
           <th style="text-align:left; border-bottom:1px solid #ddd; padding:.5rem;">Estado</th>
           <th style="text-align:left; border-bottom:1px solid #ddd; padding:.5rem;">Fecha</th>
@@ -45,7 +45,7 @@
           </td>
           <td style="padding:.5rem; border-bottom:1px solid #eee;">{{ t.estudiante?.cedula }}</td>
           <td style="padding:.5rem; border-bottom:1px solid #eee;">
-            {{ t.estudiante?.facultad || '-' }}
+            {{ t.estudiante?.cru || '-' }}
           </td>
           <td style="padding:.5rem; border-bottom:1px solid #eee;">{{ t.tipo?.nombre }}</td>
           <td style="padding:.5rem; border-bottom:1px solid #eee;">

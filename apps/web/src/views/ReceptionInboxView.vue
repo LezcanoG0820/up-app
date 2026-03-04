@@ -89,7 +89,7 @@
               <th>Asunto</th>
               <th>Estudiante</th>
               <th>Cédula</th>
-              <th>Facultad</th>
+              <th>Sede/CRU</th>
               <th>Tipo</th>
               <th>Depto</th>
               <th>Estado</th>
@@ -111,8 +111,8 @@
               <td>
                 {{ t.estudiante?.cedula }}
               </td>
-              <td class="cell-facultad" :title="t.estudiante?.facultad || '-'">
-                {{ t.estudiante?.facultad || '-' }}
+              <td class="cell-facultad" :title="t.estudiante?.cru || '-'">
+                {{ t.estudiante?.cru || '-' }}
               </td>
               <td class="cell-tipo" :title="t.tipo?.nombre || '-'">
                 {{ t.tipo?.nombre || '-' }}
@@ -310,7 +310,7 @@ onMounted(load)
 
 .inbox-table th:nth-child(5),
 .inbox-table td:nth-child(5) {
-  width: 190px; /* Facultad */
+  width: 190px; /* Sede/CRU */
 }
 
 .inbox-table th:nth-child(6),
