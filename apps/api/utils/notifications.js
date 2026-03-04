@@ -1,9 +1,10 @@
 // apps/api/utils/notifications.js
+const { PrismaClient } = require('@prisma/client')
+const { sendNotificationToUser } = require('../websocket/wsNotifications')
 
-/**
- * Crea una notificación en base de datos.
- */
-async function createNotification (prisma, {
+const prisma = new PrismaClient()
+
+async function createNotification (prismaInstance, {
   type,
   message,
   ticketId = null,
@@ -19,8 +20,17 @@ async function createNotification (prisma, {
       departmentId: departmentId ?? null
     }
 
-    const notif = await prisma.notification.create({ data })
-    console.log('✅ Notificación creada:', notif.id, notif.type)
+    const notif = await prismaInstance.notification.create({ 
+      data,
+      include: {
+        actor: {
+          select: { id: true, nombre: true, apellido: true }
+        }
+      }
+    })
+    
+    console.log('✅ Notificación creada en BD:', notif.id, notif.type)
+    await sendNotificationToRelevantUsers(notif)
     return notif
   } catch (e) {
     console.error('createNotification error:', e)
@@ -28,29 +38,80 @@ async function createNotification (prisma, {
   }
 }
 
-/**
- * Devuelve las notificaciones visibles para el usuario y cuántas no ha leído.
- */
-async function listNotificationsForUser (prisma, user, { limit = 30 } = {}) {
+async function sendNotificationToRelevantUsers(notification) {
   try {
-    // Criterio básico: notificaciones globales o de su departamento
+    let targetUserIds = []
+
+    if (notification.departmentId) {
+      const deptUsers = await prisma.user.findMany({
+        where: { 
+          departamentoId: notification.departmentId,
+          rol: { in: ['departamento', 'maestro'] }
+        },
+        select: { id: true }
+      })
+      targetUserIds = deptUsers.map(u => u.id)
+    }
+
+    if (notification.ticketId) {
+      const ticket = await prisma.ticket.findUnique({
+        where: { id: notification.ticketId },
+        select: { estudianteId: true }
+      })
+      if (ticket && !targetUserIds.includes(ticket.estudianteId)) {
+        targetUserIds.push(ticket.estudianteId)
+      }
+    }
+
+    const receptionUsers = await prisma.user.findMany({
+      where: { 
+        rol: { in: ['recepcion', 'maestro'] }
+      },
+      select: { id: true }
+    })
+    receptionUsers.forEach(u => {
+      if (!targetUserIds.includes(u.id)) {
+        targetUserIds.push(u.id)
+      }
+    })
+
+    const notificationData = {
+      id: notification.id,
+      type: notification.type,
+      message: notification.message,
+      ticketId: notification.ticketId,
+      createdAt: notification.createdAt,
+      read: false
+    }
+
+    targetUserIds.forEach(userId => {
+      const sent = sendNotificationToUser(userId, notificationData)
+      if (sent) {
+        console.log(`📨 Notificación enviada por WS a usuario ${userId}`)
+      }
+    })
+
+  } catch (e) {
+    console.error('Error enviando notificación por WebSocket:', e)
+  }
+}
+
+async function listNotificationsForUser (prismaInstance, user, { limit = 30 } = {}) {
+  try {
     const where = {
       OR: [
-        { departmentId: null }, // Notificaciones globales
+        { departmentId: null },
         ...(user.departamentoId ? [{ departmentId: user.departamentoId }] : [])
       ]
     }
 
-    const rows = await prisma.notification.findMany({
+    const rows = await prismaInstance.notification.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       take: limit,
       include: {
         actor: {
           select: { id: true, nombre: true, apellido: true, rol: true, email: true }
-        },
-        ticket: {
-          select: { id: true, token: true, asunto: true }
         },
         reads: {
           where: { userId: user.id },
@@ -64,7 +125,6 @@ async function listNotificationsForUser (prisma, user, { limit = 30 } = {}) {
       type: n.type,
       message: n.message,
       ticketId: n.ticketId,
-      ticket: n.ticket,
       actor: n.actor,
       departmentId: n.departmentId,
       createdAt: n.createdAt,
@@ -72,7 +132,6 @@ async function listNotificationsForUser (prisma, user, { limit = 30 } = {}) {
     }))
 
     const unreadCount = notifications.filter(n => !n.read).length
-
     return { notifications, unreadCount }
   } catch (e) {
     console.error('listNotificationsForUser error:', e)
@@ -80,12 +139,9 @@ async function listNotificationsForUser (prisma, user, { limit = 30 } = {}) {
   }
 }
 
-/**
- * Marca UNA notificación como leída para un usuario.
- */
-async function markNotificationRead (prisma, user, notificationId) {
+async function markNotificationRead (prismaInstance, user, notificationId) {
   try {
-    await prisma.notificationRead.upsert({
+    await prismaInstance.notificationRead.upsert({
       where: {
         userId_notificationId: {
           userId: user.id,
@@ -104,16 +160,13 @@ async function markNotificationRead (prisma, user, notificationId) {
   }
 }
 
-/**
- * Marca TODAS las notificaciones visibles como leídas para un usuario.
- */
-async function markAllNotificationsRead (prisma, user) {
+async function markAllNotificationsRead (prismaInstance, user) {
   try {
-    const { notifications } = await listNotificationsForUser(prisma, user, { limit: 200 })
+    const { notifications } = await listNotificationsForUser(prismaInstance, user, { limit: 200 })
     const ids = notifications.filter(n => !n.read).map(n => n.id)
     if (!ids.length) return
 
-    await prisma.notificationRead.createMany({
+    await prismaInstance.notificationRead.createMany({
       data: ids.map(id => ({
         userId: user.id,
         notificationId: id

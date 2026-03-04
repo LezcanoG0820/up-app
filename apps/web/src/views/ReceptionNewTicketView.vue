@@ -1,84 +1,85 @@
 <template>
-  <main style="padding:2rem; max-width:920px; margin:auto;">
-    <h2>Nuevo Ticket (Recepción)</h2>
+  <main style="padding:2rem; max-width:1000px; margin:auto;">
+    <h1>Nuevo Ticket (Recepción)</h1>
 
     <!-- PASO 1: Buscar estudiante -->
-    <section style="border:1px solid #ddd; padding:1rem; border-radius:8px; margin-bottom:1.5rem;">
+    <section class="card" style="margin-bottom:1.5rem;">
       <h3>1. Buscar estudiante existente</h3>
-      <form @submit.prevent="searchStudents" style="display:grid; gap:.75rem; margin-top:.5rem;">
+      <div style="display:flex; gap:.5rem; margin-top:.5rem;">
         <input 
-          v-model.trim="searchQuery" 
+          v-model.trim="searchQ" 
           placeholder="Buscar por cédula, nombre, apellido o email"
+          @keyup.enter="search"
+          style="flex:1;"
         />
-        <div style="display:flex; gap:.5rem;">
-          <button type="submit" :disabled="searching">
-            {{ searching ? 'Buscando...' : 'Buscar' }}
-          </button>
-          <button type="button" @click="clearSearch" style="background:#6c757d;">
-            Limpiar
-          </button>
-        </div>
-        <p v-if="searchError" style="color:red;">{{ searchError }}</p>
-      </form>
+        <button @click="search" :disabled="!searchQ || searching">
+          {{ searching ? 'Buscando...' : 'Buscar' }}
+        </button>
+      </div>
 
-      <!-- RESULTADOS MEJORADOS -->
-      <div v-if="searchResults.length" style="margin-top:1rem;">
-        <p style="margin-bottom:.75rem; font-weight:600;">Resultados:</p>
+      <!-- Resultados de búsqueda - COLORES ARREGLADOS -->
+      <div v-if="searchResults.length > 0" style="margin-top:1rem;">
+        <p><strong>Resultados encontrados:</strong></p>
         <div 
           v-for="s in searchResults" 
-          :key="s.id"
+          :key="s.id" 
+          class="card"
+          style="padding:.75rem; margin-bottom:.5rem; cursor:pointer;"
           @click="selectStudent(s)"
-          :style="getResultCardStyle(s.id)"
-          @mouseenter="hoveredResult = s.id"
-          @mouseleave="hoveredResult = null"
         >
-          <div style="display:flex; align-items:center; gap:.5rem; margin-bottom:.25rem;">
-            <span style="font-size:1.2rem;">👤</span>
-            <strong style="font-size:1.05rem;">{{ s.nombre }} {{ s.apellido }}</strong>
-          </div>
-          <div style="font-size:.9rem; color:#6b7280; display:grid; gap:.15rem; margin-left:1.7rem;">
-            <span>Cédula: {{ s.cedula }}</span>
-            <span>Email: {{ s.email }}</span>
-            <span v-if="s.cru" style="color:#059669; font-weight:500;">📍 {{ s.cru }}</span>
-          </div>
+          <strong>{{ s.nombre }} {{ s.apellido }}</strong> - {{ s.cedula }}<br/>
+          <small>{{ s.email }}</small>
+          <span v-if="s.cru" style="margin-left:1rem; color:var(--muted);">📍 {{ s.cru }}</span>
         </div>
       </div>
-      <p v-else-if="searchQuery && !searching" style="color:#666; margin-top:.5rem; font-style:italic;">
+
+      <p v-if="searched && searchResults.length === 0" class="text-muted" style="margin-top:.5rem;">
         No se encontraron estudiantes.
       </p>
+
+      <!-- Estudiante seleccionado - COLORES ARREGLADOS -->
+      <div 
+        v-if="selectedStudent" 
+        class="card"
+        style="margin-top:1rem; padding:1rem; border:2px solid var(--success);"
+      >
+        <strong style="color:var(--success);">✓ Estudiante seleccionado:</strong><br/>
+        {{ selectedStudent.nombre }} {{ selectedStudent.apellido }} ({{ selectedStudent.cedula }})
+      </div>
     </section>
 
-    <!-- PASO 2: Crear nuevo estudiante -->
-    <section style="border:1px solid #ddd; padding:1rem; border-radius:8px; margin-bottom:1.5rem;">
+    <!-- PASO 2: Crear estudiante nuevo -->
+    <section class="card" style="margin-bottom:1.5rem;">
       <h3>2. O crear nuevo estudiante</h3>
-      <form @submit.prevent="createNewStudent" style="display:grid; gap:.75rem; margin-top:.5rem;">
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:.5rem;">
-          <input v-model.trim="newStudent.nombre" placeholder="Nombre" required />
-          <input v-model.trim="newStudent.apellido" placeholder="Apellido" required />
+      <form @submit.prevent="createStudent" style="display:grid; gap:.75rem; margin-top:.5rem;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem;">
+          <input v-model.trim="newS.nombre" placeholder="Nombre" required />
+          <input v-model.trim="newS.apellido" placeholder="Apellido" required />
+          <input v-model.trim="newS.cedula" placeholder="Cédula" required />
+          <input v-model.trim="newS.email" placeholder="Email" type="email" required />
         </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:.5rem;">
-          <input v-model.trim="newStudent.cedula" placeholder="Cédula" required />
-          <input v-model.trim="newStudent.email" type="email" placeholder="Email" required />
-        </div>
-        <select v-model="newStudent.cru">
+
+        <!-- ÚNICO DROPDOWN: CRU/Sede -->
+        <select v-model="newS.cru">
           <option value="">Seleccione Sede/CRU (opcional)</option>
-          <option v-for="c in crus" :key="c.slug" :value="c.nombre">
+          <option v-for="c in centrosRegionales" :key="c.slug" :value="c.nombre">
             {{ c.nombre }}
           </option>
         </select>
-        <button type="submit" :disabled="creating">
-          {{ creating ? 'Creando...' : 'Crear Estudiante' }}
+
+        <p v-if="createStudentError" class="text-danger">{{ createStudentError }}</p>
+
+        <button type="submit" :disabled="creatingStudent">
+          {{ creatingStudent ? 'Creando estudiante...' : 'Crear estudiante' }}
         </button>
-        <p v-if="createError" style="color:red;">{{ createError }}</p>
-        <p v-if="createSuccess" style="color:#16a34a;">{{ createSuccess }}</p>
       </form>
     </section>
 
-    <!-- INDICADOR: Estudiante seleccionado -->
-    <!-- MEJORA: MÁS ESPACIO ABAJO (margin-bottom aumentado a 2.5rem) -->
+    <!-- INDICADOR VISUAL: Estudiante seleccionado -->
     <section
       v-if="selectedStudent"
-      style="margin-top:1.5rem; margin-bottom:2.5rem; padding:1rem; border:2px solid var(--success); border-radius:12px; background:rgba(22, 163, 74, 0.05);"
+      class="card"
+      style="margin-bottom:1.5rem; padding:1rem; border:2px solid var(--success);"
     >
       <div style="display:flex; align-items:center; gap:.75rem;">
         <span style="font-size:1.5rem;">✅</span>
@@ -91,68 +92,76 @@
             <br>
             Cédula: {{ selectedStudent.cedula }} | Email: {{ selectedStudent.email }}
             <br>
-            <span v-if="selectedStudent.cru" style="color:var(--muted);">{{ selectedStudent.cru }}</span>
+            <span v-if="selectedStudent.cru" class="text-muted">{{ selectedStudent.cru }}</span>
           </p>
         </div>
       </div>
     </section>
 
     <!-- PASO 3: Datos del ticket -->
-    <section v-if="selectedStudent" style="border:1px solid #ddd; padding:1rem; border-radius:8px;">
+    <section class="card" style="margin-bottom:1.5rem;">
       <h3>3. Datos del ticket</h3>
       <form @submit.prevent="submitTicket" style="display:grid; gap:.75rem; margin-top:.5rem;">
-        
-        <label>Departamento destino
+        <div>
+          <label style="display:block; margin-bottom:.25rem; font-weight:600;">Departamento destino</label>
           <select v-model="ticketData.departmentSlug" required>
             <option value="">Seleccione departamento</option>
             <option v-for="d in departments" :key="d.id" :value="d.slug">
               {{ d.nombre }}
             </option>
           </select>
-        </label>
+        </div>
 
-        <label>Asuntos rápidos (opcional)
+        <div>
+          <label style="display:block; margin-bottom:.25rem; font-weight:600;">Asuntos rápidos (opcional)</label>
           <select v-model="quickSubject" @change="applyQuickSubject">
-            <option value="">-- Seleccione un asunto predefinido --</option>
-            <option value="Error de pago / matrícula">Error de pago / matrícula</option>
-            <option value="Problema con pago pendiente">Problema con pago pendiente</option>
-            <option value="Solicitud de créditos">Solicitud de créditos</option>
-            <option value="Constancia de estudios o documentos">Constancia de estudios o documentos</option>
-            <option value="Consultas generales">Consultas generales</option>
+            <option value="">-- Seleccione o escriba manualmente --</option>
+            <option>Error de pago / matrícula</option>
+            <option>Problema con pago pendiente</option>
+            <option>Solicitud de créditos</option>
+            <option>Constancia de estudios o documentos</option>
+            <option>Consultas generales</option>
           </select>
-        </label>
+        </div>
 
-        <label>Asunto
-          <input v-model.trim="ticketData.asunto" required />
-        </label>
+        <div>
+          <label style="display:block; margin-bottom:.25rem; font-weight:600;">Asunto</label>
+          <input v-model.trim="ticketData.asunto" placeholder="Ej: Problema con pago pendiente" required />
+        </div>
 
-        <label>Descripción breve
-          <textarea v-model="ticketData.descripcion" rows="4" required></textarea>
-        </label>
+        <div>
+          <label style="display:block; margin-bottom:.25rem; font-weight:600;">Descripción breve</label>
+          <textarea v-model.trim="ticketData.descripcion" rows="4" placeholder="Describa la consulta del estudiante" required></textarea>
+        </div>
 
-        <label>Detalle adicional (opcional)
-          <textarea v-model="ticketData.detalleAdicional" rows="3"></textarea>
-        </label>
+        <div>
+          <label style="display:block; margin-bottom:.25rem; font-weight:600;">Detalle adicional (opcional)</label>
+          <textarea v-model.trim="ticketData.detalleAdicional" rows="3" placeholder="Información adicional relevante"></textarea>
+        </div>
 
-        <label>Categoría de consulta
+        <div>
+          <label style="display:block; margin-bottom:.25rem; font-weight:600;">Categoría de consulta</label>
           <select v-model="ticketData.categoriaQueja">
-            <option value="">-- Seleccione categoría (opcional) --</option>
-            <option v-for="cat in CATEGORIAS" :key="cat" :value="cat">
-              {{ cat }}
-            </option>
+            <option value="">Seleccione categoría</option>
+            <option v-for="cat in CATEGORIAS" :key="cat">{{ cat }}</option>
           </select>
-        </label>
+        </div>
 
-        <button type="submit" :disabled="submitting">
+        <p v-if="ticketError" class="text-danger">{{ ticketError }}</p>
+
+        <button type="submit" :disabled="!selectedStudent || submitting">
           {{ submitting ? 'Creando ticket...' : 'Crear Ticket' }}
         </button>
-        <p v-if="ticketError" style="color:red;">{{ ticketError }}</p>
       </form>
     </section>
 
-    <!-- Confirmación -->
-    <div v-if="createdTicket" style="margin-top:2rem; padding:1.5rem; background:#e8f5e9; border:1px solid #4caf50; border-radius:8px;">
-      <h3 style="color:#2e7d32;">✓ Ticket creado exitosamente</h3>
+    <!-- Confirmación - COLORES ARREGLADOS -->
+    <div 
+      v-if="createdTicket" 
+      class="card"
+      style="margin-top:2rem; padding:1.5rem; border:2px solid var(--success);"
+    >
+      <h3 style="color:var(--success); margin-top:0;">✓ Ticket creado exitosamente</h3>
       <p><strong>Token:</strong> {{ createdTicket.token }}</p>
       <p><strong>Estudiante:</strong> {{ createdTicket.estudiante.nombre }} {{ createdTicket.estudiante.apellido }}</p>
       <button @click="reset" style="margin-top:1rem;">Crear otro ticket</button>
@@ -168,32 +177,35 @@ const CATEGORIAS = [
   'Queja',
   'Reclamo',
   'Sugerencia',
-  'Consulta',
-  'Solicitud'
+  'Felicitación',
+  'Consulta'
 ]
 
-const searchQuery = ref('')
-const searchResults = ref([])
+// Búsqueda
+const searchQ = ref('')
 const searching = ref(false)
-const searchError = ref('')
-const hoveredResult = ref(null)
+const searched = ref(false)
+const searchResults = ref([])
+const selectedStudent = ref(null)
 
-const newStudent = ref({
+// Crear estudiante
+const newS = ref({
   nombre: '',
   apellido: '',
   cedula: '',
   email: '',
   cru: ''
 })
-const creating = ref(false)
-const createError = ref('')
-const createSuccess = ref('')
+const creatingStudent = ref(false)
+const createStudentError = ref('')
 
-const selectedStudent = ref(null)
+// Centros Regionales
+const centrosRegionales = ref([])
 
+// Departamentos
 const departments = ref([])
-const crus = ref([])
 
+// Ticket
 const ticketData = ref({
   departmentSlug: '',
   asunto: '',
@@ -206,82 +218,62 @@ const submitting = ref(false)
 const ticketError = ref('')
 const createdTicket = ref(null)
 
-// Estilo dinámico para cards de resultados
-function getResultCardStyle(studentId) {
-  const isHovered = hoveredResult.value === studentId
-  return {
-    cursor: 'pointer',
-    padding: '1rem',
-    border: `1px solid ${isHovered ? '#3b82f6' : '#d1d5db'}`,
-    borderRadius: '8px',
-    marginBottom: '.75rem',
-    background: '#f9fafb',
-    transition: 'all 0.2s ease'
-  }
-}
-
-// Buscar estudiantes
-async function searchStudents() {
-  if (!searchQuery.value.trim()) {
-    searchError.value = 'Ingrese un criterio de búsqueda'
-    return
-  }
-
+// Buscar estudiante
+async function search() {
+  if (!searchQ.value) return
   searching.value = true
-  searchError.value = ''
+  searched.value = false
   searchResults.value = []
-
   try {
-    const { students } = await manageApi.searchStudents(searchQuery.value)
+    const { students } = await manageApi.searchStudents(searchQ.value)
     searchResults.value = students || []
+    searched.value = true
   } catch (e) {
     console.error(e)
-    searchError.value = String(e?.message || e)
   } finally {
     searching.value = false
   }
 }
 
-function clearSearch() {
-  searchQuery.value = ''
+// Seleccionar estudiante
+function selectStudent(s) {
+  selectedStudent.value = s
   searchResults.value = []
-  searchError.value = ''
-}
-
-function selectStudent(student) {
-  selectedStudent.value = student
-  createSuccess.value = ''
+  searchQ.value = ''
 }
 
 // Crear estudiante
-async function createNewStudent() {
-  creating.value = true
-  createError.value = ''
-  createSuccess.value = ''
-
+async function createStudent() {
+  creatingStudent.value = true
+  createStudentError.value = ''
   try {
-    const { student } = await manageApi.createStudent(newStudent.value)
+    const { student } = await manageApi.createStudent({
+      nombre: newS.value.nombre,
+      apellido: newS.value.apellido,
+      cedula: newS.value.cedula,
+      email: newS.value.email,
+      cru: newS.value.cru || null
+    })
     selectedStudent.value = student
-    createSuccess.value = 'Estudiante creado y seleccionado'
-    newStudent.value = { nombre: '', apellido: '', cedula: '', email: '', cru: '' }
+    newS.value = { nombre: '', apellido: '', cedula: '', email: '', cru: '' }
   } catch (e) {
-    console.error(e)
-    createError.value = String(e?.message || e)
+    createStudentError.value = String(e?.message || e)
   } finally {
-    creating.value = false
+    creatingStudent.value = false
   }
 }
 
-// Asunto rápido
+// Aplicar asunto rápido
 function applyQuickSubject() {
-  ticketData.value.asunto = quickSubject.value
+  if (quickSubject.value) {
+    ticketData.value.asunto = quickSubject.value
+  }
 }
 
 // Crear ticket
 async function submitTicket() {
   submitting.value = true
   ticketError.value = ''
-
   try {
     const payload = {
       estudianteId: selectedStudent.value.id,
@@ -295,13 +287,13 @@ async function submitTicket() {
     const { ticket } = await ticketsApi.createByReception(payload)
     createdTicket.value = ticket
   } catch (e) {
-    console.error(e)
     ticketError.value = String(e?.message || e)
   } finally {
     submitting.value = false
   }
 }
 
+// Reset
 function reset() {
   selectedStudent.value = null
   ticketData.value = {
@@ -313,18 +305,19 @@ function reset() {
   }
   quickSubject.value = ''
   createdTicket.value = null
-  searchQuery.value = ''
+  searchQ.value = ''
+  searched.value = false
   searchResults.value = []
 }
 
+// Cargar datos
 onMounted(async () => {
   try {
-    const [deptResult, crusResult] = await Promise.all([
-      manageApi.departments(),
-      manageApi.getCentrosRegionales()
-    ])
-    departments.value = deptResult.departments || []
-    crus.value = crusResult.centros || []
+    const { departments: depts } = await manageApi.departments()
+    departments.value = depts || []
+
+    const { centros } = await manageApi.getCentrosRegionales()
+    centrosRegionales.value = centros || []
   } catch (e) {
     console.error('Error cargando datos:', e)
   }

@@ -29,7 +29,7 @@
           <th style="text-align:left; border-bottom:1px solid #ddd; padding:.5rem;">Asunto</th>
           <th style="text-align:left; border-bottom:1px solid #ddd; padding:.5rem;">Estudiante</th>
           <th style="text-align:left; border-bottom:1px solid #ddd; padding:.5rem;">Cédula</th>
-          <th style="text-align:left; border-bottom:1px solid #ddd; padding:.5rem;">Sede/CRU</th>
+          <th style="text-align:left; border-bottom:1px solid #ddd; padding:.5rem;">Sede/CRU/Fac</th>
           <th style="text-align:left; border-bottom:1px solid #ddd; padding:.5rem;">Tipo</th>
           <th style="text-align:left; border-bottom:1px solid #ddd; padding:.5rem;">Estado</th>
           <th style="text-align:left; border-bottom:1px solid #ddd; padding:.5rem;">Fecha</th>

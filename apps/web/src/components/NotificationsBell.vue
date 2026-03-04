@@ -1,200 +1,170 @@
-<!-- apps/web/src/components/NotificationsBell.vue -->
 <template>
-  <div class="notif-wrapper" ref="wrapper">
+  <div style="position: relative;">
+    <!-- Botón de la campana -->
     <button
-      type="button"
-      class="btn-secondary notif-button"
-      @click="toggleOpen"
-      :aria-label="`Abrir notificaciones (${unreadCount} sin leer)`"
+      @click="toggleDropdown"
+      class="btn-secondary"
+      style="position: relative; padding: 0.5rem 0.75rem;"
+      title="Notificaciones"
     >
-      <span class="notif-icon">🔔</span>
-      <span v-if="unreadCount > 0" class="notif-badge">{{ unreadCount }}</span>
+      🔔
+      <span
+        v-if="unreadCount > 0"
+        style="position: absolute; top: -4px; right: -4px; background: var(--danger); color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 0.7rem; display: flex; align-items: center; justify-content: center; font-weight: bold;"
+      >
+        {{ unreadCount > 9 ? '9+' : unreadCount }}
+      </span>
     </button>
 
-    <div v-if="open" class="notif-panel card">
-      <header class="notif-header">
+    <!-- Dropdown -->
+    <div
+      v-if="showDropdown"
+      class="card"
+      style="position: absolute; top: 100%; right: 0; margin-top: 0.5rem; width: 350px; max-height: 400px; overflow-y: auto; z-index: 1000; padding: 0;"
+    >
+      <!-- Header -->
+      <div style="padding: 0.75rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
         <strong>Notificaciones</strong>
         <button
           v-if="unreadCount > 0"
-          class="btn-secondary btn-sm"
-          @click="markAll"
-        >Marcar todas como leídas</button>
-      </header>
+          @click="markAllAsRead"
+          class="btn-secondary"
+          style="font-size: 0.8rem; padding: 0.25rem 0.5rem;"
+        >
+          Marcar todas
+        </button>
+      </div>
 
-      <section class="notif-list">
-        <p v-if="items.length === 0" class="text-muted">No hay notificaciones.</p>
+      <!-- Loading -->
+      <div v-if="loading" style="padding: 2rem; text-align: center; color: var(--muted);">
+        Cargando...
+      </div>
 
-        <ul v-else>
-          <li
-            v-for="n in items"
-            :key="n.id"
-            class="notif-item"
-            :class="{ 'notif-unread': !n.read }"
-            @click="handleClick(n)"
-          >
-            <div class="notif-main">
-              <div class="notif-message">{{ n.message }}</div>
-              <div class="notif-meta text-muted">
-                <span>{{ formatDate(n.createdAt) }}</span>
-                <span v-if="n.actor">
-                  · {{ n.actor.nombre }} {{ n.actor.apellido }} ({{ n.actor.rol }})
-                </span>
-                <span v-if="n.ticketId"> · Ticket #{{ n.ticketId }}</span>
-              </div>
+      <!-- Lista de notificaciones -->
+      <div v-else-if="notifications.length > 0" style="max-height: 300px; overflow-y: auto;">
+        <div
+          v-for="notif in notifications"
+          :key="notif.id"
+          @click="handleNotificationClick(notif)"
+          style="padding: 0.75rem; border-bottom: 1px solid var(--border); cursor: pointer;"
+          :style="notif.read ? '' : 'background: rgba(37, 99, 235, 0.05);'"
+        >
+          <div style="display: flex; gap: 0.5rem; align-items: start;">
+            <span style="font-size: 1.2rem;">
+              {{ notif.type === 'TICKET_CREATED' ? '🎫' : notif.type === 'TICKET_COMPLETED' ? '✅' : '💬' }}
+            </span>
+            <div style="flex: 1;">
+              <p style="margin: 0; font-size: 0.9rem;">{{ notif.message }}</p>
+              <small style="color: var(--muted);">{{ formatTime(notif.createdAt) }}</small>
             </div>
-          </li>
-        </ul>
-      </section>
+            <span v-if="!notif.read" style="width: 8px; height: 8px; background: var(--primary); border-radius: 50%; flex-shrink: 0; margin-top: 0.25rem;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sin notificaciones -->
+      <div v-else style="padding: 2rem; text-align: center; color: var(--muted);">
+        No hay notificaciones
+      </div>
+
+      <!-- Estado conexión -->
+      <div style="padding: 0.5rem; text-align: center; font-size: 0.75rem; color: var(--muted); border-top: 1px solid var(--border);">
+        {{ isConnected ? '🟢 Conectado' : '🔴 Desconectado' }}
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useNotifications, startNotificationsPolling, stopNotificationsPolling } from '../store/notifications'
+import { useNotifications } from '../composables/useNotifications'
+
+const props = defineProps({
+  userId: {
+    type: Number,
+    required: true
+  }
+})
 
 const router = useRouter()
-const { state, markAsRead, markAllRead } = useNotifications()
+const showDropdown = ref(false)
+const loading = ref(false)
 
-const open = ref(false)
-const wrapper = ref(null)
+// Usar el composable
+const {
+  notifications,
+  unreadCount,
+  isConnected,
+  connect,
+  disconnect,
+  fetchNotifications,
+  markAsRead
+} = useNotifications(props.userId)
 
-const unreadCount = computed(() => state.unreadCount)
-const items = computed(() => state.items)
-
-function toggleOpen () {
-  open.value = !open.value
+// Toggle dropdown
+function toggleDropdown() {
+  showDropdown.value = !showDropdown.value
+  if (showDropdown.value) {
+    fetchNotifications()
+  }
 }
 
-function formatDate (s) {
+// Click en notificación
+async function handleNotificationClick(notif) {
+  if (!notif.read) {
+    await markAsRead(notif.id)
+  }
+  if (notif.ticketId) {
+    router.push(`/tickets/${notif.ticketId}`)
+  }
+  showDropdown.value = false
+}
+
+// Marcar todas como leídas
+async function markAllAsRead() {
   try {
-    return new Date(s).toLocaleString()
-  } catch {
-    return s
+    const response = await fetch('http://localhost:4000/api/notifications/read-all', {
+      method: 'PATCH',
+      credentials: 'include'
+    })
+    if (response.ok) {
+      await fetchNotifications()
+    }
+  } catch (e) {
+    console.error('Error marking all as read:', e)
   }
 }
 
-async function handleClick (n) {
-  if (!n.read) {
-    await markAsRead(n.id)
-  }
-  if (n.ticketId) {
-    router.push({ name: 'ticket-detail', params: { id: n.ticketId } })
-    open.value = false
-  }
+// Formato de tiempo
+function formatTime(dateStr) {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diff = Math.floor((now - date) / 1000)
+
+  if (diff < 60) return 'Ahora'
+  if (diff < 3600) return `Hace ${Math.floor(diff / 60)}m`
+  if (diff < 86400) return `Hace ${Math.floor(diff / 3600)}h`
+  return date.toLocaleDateString()
 }
 
-async function markAll () {
-  await markAllRead()
-}
-
-function onClickOutside (ev) {
-  if (!open.value) return
-  if (!wrapper.value) return
-  if (!wrapper.value.contains(ev.target)) {
-    open.value = false
+// Cerrar dropdown al hacer click fuera
+function handleClickOutside(e) {
+  if (!e.target.closest('.card') && !e.target.closest('button')) {
+    showDropdown.value = false
   }
 }
 
-onMounted(() => {
-  document.addEventListener('click', onClickOutside)
-  startNotificationsPolling(15000)
+onMounted(async () => {
+  connect()
+  loading.value = true
+  await fetchNotifications()
+  loading.value = false
+  document.addEventListener('click', handleClickOutside)
 })
 
-onBeforeUnmount(() => {
-  document.removeEventListener('click', onClickOutside)
-  stopNotificationsPolling()
+onUnmounted(() => {
+  disconnect()
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
-
-<style scoped>
-.notif-wrapper {
-  position: relative;
-}
-
-.notif-button {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 40px;
-}
-
-.notif-icon {
-  font-size: 1.1rem;
-}
-
-.notif-badge {
-  position: absolute;
-  top: -0.25rem;
-  right: -0.25rem;
-  min-width: 1.2rem;
-  height: 1.2rem;
-  padding: 0 0.25rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  line-height: 1.2rem;
-  background: #dc2626;
-  color: white;
-}
-
-.notif-panel {
-  position: absolute;
-  right: 0;
-  margin-top: 0.5rem;
-  width: 320px;
-  max-height: 360px;
-  padding: 0.5rem;
-  overflow: auto;
-  z-index: 50;
-}
-
-.notif-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.25rem 0.5rem 0.5rem;
-  border-bottom: 1px solid var(--border, #e5e7eb);
-}
-
-.notif-list {
-  padding: 0.5rem 0;
-}
-
-.notif-list ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.notif-item {
-  padding: 0.4rem 0.5rem;
-  border-radius: var(--radius, 0.5rem);
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.notif-item + .notif-item {
-  margin-top: 0.25rem;
-}
-
-.notif-item:hover {
-  background: rgba(148, 163, 184, 0.1);
-}
-
-.notif-unread {
-  border-color: rgba(37, 99, 235, 0.4);
-  background: rgba(37, 99, 235, 0.06);
-}
-
-.notif-message {
-  font-size: 0.9rem;
-}
-
-.notif-meta {
-  margin-top: 0.15rem;
-  font-size: 0.75rem;
-}
-</style>

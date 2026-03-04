@@ -55,8 +55,11 @@
         </nav>
       </div>
 
-      <!-- Bloque derecho: tema, usuario -->
+      <!-- Bloque derecho: tema, usuario, notificaciones -->
       <div style="display:flex; align-items:center; gap:.5rem;">
+        <!-- Notificaciones -->
+        <NotificationsBell v-if="user" :userId="user.id" />
+
         <!-- Selector Claro/Oscuro -->
         <button
           class="btn-secondary"
@@ -195,6 +198,7 @@ import { authApi } from './api'
 import { useRouter } from 'vue-router'
 import { themeName, toggleTheme } from './utils/theme'
 import upLogo from './assets/UP-logo.png'
+import NotificationsBell from './components/NotificationsBell.vue'
 
 const router = useRouter()
 const user = computed(() => session.user)
