@@ -188,6 +188,35 @@
     <main style="padding-top:1rem;">
       <RouterView />
     </main>
+
+    <!-- 
+      ========================================================================
+      DEVELOPER SIGNATURE - DO NOT REMOVE
+      
+      This system was developed as a professional practice project by:
+      Guillermo A. Lezcano G.
+      Universidad Tecnológica de Panamá
+      Facultad de Ingeniería de Sistemas Computacionales
+      
+      Year: 2026
+      Client: Universidad de Panamá - Dirección General de Admisión
+      
+      This signature represents countless hours of development, debugging,
+      learning, and dedication. It is both an academic requirement and a
+      personal achievement.
+      
+      Please respect the developer's work by keeping this signature intact.
+      ========================================================================
+    -->
+    <footer style="margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); text-align: center;">
+      <p style="margin: 0; font-size: 0.85rem; color: var(--muted); line-height: 1.6;">
+        Desarrollado por <strong style="color: var(--text);">Guillermo A. Lezcano G.</strong>
+        <br>
+        <span style="font-size: 0.75rem;">
+          Universidad Tecnológica de Panamá • Facultad de Ingeniería de Sistemas Computacionales • 2026
+        </span>
+      </p>
+    </footer>
   </div>
 </template>
 
